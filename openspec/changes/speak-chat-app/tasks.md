@@ -1,12 +1,12 @@
 ## 1. Project Setup
 
-- [ ] 1.1 Create project directory structure (frontend/, backend/)
-- [ ] 1.2 Initialize backend with FastAPI and create requirements.txt
-- [ ] 1.3 Initialize frontend with React + Vite
-- [ ] 1.4 Set up environment variables (.env) for Anthropic API key
-- [ ] 1.5 Create .gitignore for both frontend and backend
-- [ ] 1.6 Install LangGraph and Anthropic SDK in backend
-- [ ] 1.7 Install SSE client library in frontend
+- [x] 1.1 Create project directory structure (frontend/, backend/)
+- [x] 1.2 Initialize backend with FastAPI and create requirements.txt
+- [x] 1.3 Initialize frontend with React + Vite
+- [x] 1.4 Set up environment variables (.env) for Anthropic API key
+- [x] 1.5 Create .gitignore for both frontend and backend
+- [x] 1.6 Install LangGraph and Anthropic SDK in backend
+- [x] 1.7 Install SSE client library in frontend
 
 ## 2. Backend - LangGraph Workflow
 

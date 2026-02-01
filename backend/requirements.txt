@@ -1,0 +1,15 @@
+# FastAPI and server dependencies
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# LangGraph and AI dependencies
+langgraph==0.2.45
+langchain-anthropic==0.3.3
+# langchain-core will be installed as a dependency with compatible version
+
+# Environment and utilities
+python-dotenv==1.0.0
+
+# CORS support
+fastapi-cors==0.0.6
