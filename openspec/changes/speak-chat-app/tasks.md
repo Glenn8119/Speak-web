@@ -21,11 +21,11 @@
 
 ## 3. Backend - API Endpoints
 
-- [ ] 3.1 Create FastAPI app instance
-- [ ] 3.2 Implement POST /chat endpoint with SSE streaming
-- [ ] 3.3 Add thread_id generation logic for new conversations
-- [ ] 3.4 Implement SSE event generator for graph updates
-- [ ] 3.5 Add error handling for node failures in stream
+- [x] 3.1 Create FastAPI app instance
+- [x] 3.2 Implement POST /chat endpoint with SSE streaming
+- [x] 3.3 Add thread_id generation logic for new conversations
+- [x] 3.4 Implement SSE event generator for graph updates
+- [x] 3.5 Add error handling for node failures in stream
 - [ ] 3.6 Implement POST /summary endpoint
 - [ ] 3.7 Add thread state query logic for corrections retrieval
 - [ ] 3.8 Implement AI-powered tips generation for summary Part 2
