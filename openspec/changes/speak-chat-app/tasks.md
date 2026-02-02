@@ -10,14 +10,14 @@
 
 ## 2. Backend - LangGraph Workflow
 
-- [ ] 2.1 Define GraphState TypedDict with messages, corrections, and thread_id
-- [ ] 2.2 Implement chat_node function with conversational prompt
-- [ ] 2.3 Implement correction_node function with grammar checking prompt
-- [ ] 2.4 Create dispatch node for parallel execution entry point
-- [ ] 2.5 Build LangGraph workflow with parallel edges
-- [ ] 2.6 Configure MemorySaver checkpointer for development
-- [ ] 2.7 Compile graph with checkpointer
-- [ ] 2.8 Test graph execution with sample inputs
+- [x] 2.1 Define GraphState TypedDict with messages, corrections, and thread_id
+- [x] 2.2 Implement chat_node function with conversational prompt
+- [x] 2.3 Implement correction_node function with grammar checking prompt
+- [x] 2.4 Create dispatch node for parallel execution entry point
+- [x] 2.5 Build LangGraph workflow with parallel edges
+- [x] 2.6 Configure MemorySaver checkpointer for development
+- [x] 2.7 Compile graph with checkpointer
+- [x] 2.8 Test graph execution with sample inputs
 
 ## 3. Backend - API Endpoints
 
