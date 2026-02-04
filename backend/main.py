@@ -139,3 +139,181 @@ async def chat(request: ChatRequest):
             "X-Accel-Buffering": "no"  # Disable buffering for nginx
         }
     )
+
+
+# Summary endpoint
+
+class SummaryRequest(BaseModel):
+    """Request model for summary endpoint"""
+    thread_id: str
+
+
+class PatternInfo(BaseModel):
+    """Pattern structure for common errors"""
+    pattern: str
+    frequency: int
+    suggestion: str
+
+
+class SummaryResponse(BaseModel):
+    """Response model for summary endpoint"""
+    corrections: list[dict]
+    tips: str
+    common_patterns: list[PatternInfo]
+
+
+@app.post("/summary", response_model=SummaryResponse)
+async def get_summary(request: SummaryRequest):
+    """
+    Generate a two-part practice summary for a conversation thread.
+
+    Part 1: List all grammar corrections from thread state (no AI call)
+    Part 2: AI-generated tips based on correction analysis
+
+    # TODO: Future enhancement - Add Notion MCP sync to save summaries
+    # to user's learning journal in Notion for long-term progress tracking.
+
+    Args:
+        request: SummaryRequest with thread_id
+
+    Returns:
+        SummaryResponse with corrections, tips, and common patterns
+    """
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import SystemMessage, HumanMessage
+
+    thread_id = request.thread_id
+
+    # Part 1: Query thread state for corrections (no AI needed)
+    config = {"configurable": {"thread_id": thread_id}}
+
+    try:
+        # Get state from the graph's checkpointer
+        state = graph.get_state(config)
+
+        if state is None or state.values is None:
+            return SummaryResponse(
+                corrections=[],
+                tips="Start a conversation to get grammar feedback and personalized tips!",
+                common_patterns=[]
+            )
+
+        corrections = state.values.get("corrections", [])
+
+        # Handle empty corrections
+        if not corrections:
+            return SummaryResponse(
+                corrections=[],
+                tips="Excellent! You haven't made any grammar errors in this conversation. Keep up the great work! 🎉",
+                common_patterns=[]
+            )
+
+        # Part 2: AI-powered tips generation
+        llm = ChatAnthropic(
+            model="claude-sonnet-4-5-20250929",  # type: ignore
+            temperature=0.5,
+        )
+
+        # Prepare corrections summary for AI
+        corrections_text = "\n".join([
+            f"- Original: \"{c['original']}\"\n  Corrected: \"{c['corrected']}\"\n  Issues: {c['issues']}"
+            for c in corrections
+        ])
+
+        # Summary tips prompt - focused on spoken English and encouraging tone
+        system_prompt = """You are a warm, encouraging English speaking coach celebrating a student's practice session!
+
+CONTEXT: This is a SPEAKING practice app. The corrections are from spoken English, not written text.
+Focus your feedback on natural spoken English patterns, not written conventions.
+
+Your task: Analyze the spoken grammar patterns and provide:
+1. Identify common SPEAKING patterns that could be improved (with frequency)
+2. Give 2-3 specific, actionable tips for speaking practice
+3. Celebrate their effort and progress!
+
+Important guidance:
+- Focus on patterns that affect spoken clarity (tenses, agreement, articles, prepositions)
+- Ignore capitalization/punctuation issues (these are from speech-to-text)
+- Suggest practice activities they can do while speaking (e.g., "Try describing your day using past tense")
+- Be genuinely warm and encouraging - speaking a new language takes courage!
+
+Output format (JSON):
+{
+    "common_patterns": [
+        {"pattern": "Name of speaking pattern", "frequency": N, "suggestion": "A specific speaking exercise to practice"}
+    ],
+    "tips": "A friendly 2-3 paragraph message that: (1) celebrates their effort and highlights something they did well, (2) explains 1-2 key patterns to focus on with simple tips, (3) ends with encouragement to keep speaking!"
+}
+
+Example tips format:
+"Great job having this conversation! 🎉 You're getting more comfortable expressing your thoughts in English, and that's what matters most.
+
+I noticed you sometimes mix up past and present tense when telling stories (like saying 'I go' instead of 'I went'). A fun way to practice: try narrating your daily activities out loud in past tense, even just for a few minutes!
+
+Keep speaking - every conversation makes you more confident. You're doing amazing! 🌟"
+
+Be enthusiastic and specific! Make them excited to keep practicing."""
+
+        analysis_request = f"""Please analyze these grammar corrections from a conversation:
+
+{corrections_text}
+
+Total corrections: {len(corrections)}
+
+Identify patterns and provide personalized tips."""
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=analysis_request)
+        ]
+
+        response = llm.invoke(messages)
+
+        # Parse AI response
+        try:
+            content = response.content if isinstance(
+                response.content, str) else str(response.content)
+
+            # Strip markdown code blocks if present
+            content = content.strip()
+            if content.startswith("```json"):
+                content = content[7:]
+            if content.startswith("```"):
+                content = content[3:]
+            if content.endswith("```"):
+                content = content[:-3]
+            content = content.strip()
+
+            analysis = json.loads(content)
+
+            tips = analysis.get(
+                "tips", "Keep practicing! Every conversation helps you improve.")
+            patterns_data = analysis.get("common_patterns", [])
+
+            common_patterns = [
+                PatternInfo(
+                    pattern=p.get("pattern", "Unknown"),
+                    frequency=p.get("frequency", 1),
+                    suggestion=p.get("suggestion", "Practice makes perfect!")
+                )
+                for p in patterns_data
+            ]
+
+        except (json.JSONDecodeError, KeyError):
+            # Fallback if AI response can't be parsed
+            tips = "Keep practicing! You're making great progress in your English conversation skills."
+            common_patterns = []
+
+        return SummaryResponse(
+            corrections=corrections,
+            tips=tips,
+            common_patterns=common_patterns
+        )
+
+    except Exception as e:
+        # Return error response
+        return SummaryResponse(
+            corrections=[],
+            tips=f"Unable to generate summary: {str(e)}",
+            common_patterns=[]
+        )

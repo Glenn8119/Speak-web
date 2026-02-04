@@ -26,19 +26,19 @@
 - [x] 3.3 Add thread_id generation logic for new conversations
 - [x] 3.4 Implement SSE event generator for graph updates
 - [x] 3.5 Add error handling for node failures in stream
-- [ ] 3.6 Implement POST /summary endpoint
-- [ ] 3.7 Add thread state query logic for corrections retrieval
-- [ ] 3.8 Implement AI-powered tips generation for summary Part 2
-- [ ] 3.9 Add TODO comment for future Notion MCP sync
-- [ ] 3.10 Add CORS middleware for frontend communication
+- [x] 3.6 Implement POST /summary endpoint
+- [x] 3.7 Add thread state query logic for corrections retrieval
+- [x] 3.8 Implement AI-powered tips generation for summary Part 2
+- [x] 3.9 Add TODO comment for future Notion MCP sync
+- [x] 3.10 Add CORS middleware for frontend communication
 
 ## 4. Backend - Prompt Engineering
 
-- [ ] 4.1 Refine chat node system prompt for natural conversation
-- [ ] 4.2 Refine correction node system prompt for grammar focus
-- [ ] 4.3 Add examples to correction prompt for consistency
-- [ ] 4.4 Refine summary tips prompt for encouraging tone
-- [ ] 4.5 Test prompts with various user inputs and iterate
+- [x] 4.1 Refine chat node system prompt for natural conversation
+- [x] 4.2 Refine correction node system prompt for grammar focus
+- [x] 4.3 Add examples to correction prompt for consistency
+- [x] 4.4 Refine summary tips prompt for encouraging tone
+- [x] 4.5 Test prompts with various user inputs and iterate
 
 ## 5. Frontend - Project Structure
 
