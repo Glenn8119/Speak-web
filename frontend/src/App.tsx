@@ -1,46 +1,73 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { ChatProvider, useChat } from './context/ChatContext'
+import { useSSE } from './hooks/useSSE'
+import ChatContainer from './components/ChatContainer'
+import MessageInput from './components/MessageInput'
+import NewConversationButton from './components/NewConversationButton'
+import SummaryModal from './components/SummaryModal'
+import type { Summary } from './types'
 
-function App() {
-  const [count, setCount] = useState(0)
+function ChatApp() {
+  const { loading, threadId, setLoading } = useChat()
+  const { sendMessage } = useSSE()
+  const [summary, setSummary] = useState<Summary | null>(null)
+
+  const handleOpenSummary = async () => {
+    if (!threadId) return
+    setLoading('summary', true)
+    try {
+      const response = await fetch('http://localhost:8000/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: threadId })
+      })
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`)
+      const data: Summary = await response.json()
+      setSummary(data)
+    } catch (error) {
+      console.error('Failed to fetch summary:', error)
+    } finally {
+      setLoading('summary', false)
+    }
+  }
+
+  const isInputDisabled = loading.chat || loading.correction
 
   return (
-    <div className='flex flex-col items-center justify-center min-h-screen bg-gray-950 text-white'>
-      <div className='flex gap-6'>
-        <a href='https://vite.dev' target='_blank'>
-          <img
-            src={viteLogo}
-            className='h-24 p-4 cursor-pointer transition-filter duration-300 hover:drop-shadow-[0_0_2em_#646cffaa]'
-            alt='Vite logo'
-          />
-        </a>
-        <a href='https://react.dev' target='_blank'>
-          <img
-            src={reactLogo}
-            className='h-24 p-4 cursor-pointer transition-filter duration-300 hover:drop-shadow-[0_0_2em_#61dafb]'
-            alt='React logo'
-          />
-        </a>
-      </div>
-      <h1 className='text-5xl font-bold mt-6'>Vite + React</h1>
-      <div className='mt-8 p-8 rounded-lg border border-gray-700 text-center'>
-        <button
-          className='px-4 py-2 rounded border border-gray-600 hover:border-gray-400 transition-colors cursor-pointer'
-          onClick={() => setCount((count) => count + 1)}
-        >
-          count is {count}
-        </button>
-        <p className='mt-4'>
-          Edit <code className='text-indigo-400'>src/App.tsx</code> and save to
-          test HMR
-        </p>
-      </div>
-      <p className='mt-6 text-gray-500'>
-        Click on the Vite and React logos to learn more
-      </p>
+    <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
+      {/* Header */}
+      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
+        <h1 className="text-lg font-semibold text-indigo-400">Speak</h1>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={handleOpenSummary}
+            disabled={!threadId || loading.summary}
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {loading.summary ? 'Generating…' : 'Summary'}
+          </button>
+          <NewConversationButton />
+        </div>
+      </header>
+
+      {/* Chat message list */}
+      <ChatContainer />
+
+      {/* Message input */}
+      <MessageInput onSend={sendMessage} disabled={isInputDisabled} />
+
+      {/* Summary modal (rendered when summary data is available) */}
+      {summary && (
+        <SummaryModal summary={summary} onClose={() => setSummary(null)} />
+      )}
     </div>
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <ChatProvider>
+      <ChatApp />
+    </ChatProvider>
+  )
+}
