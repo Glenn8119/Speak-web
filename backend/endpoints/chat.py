@@ -14,7 +14,15 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
 
 from dependencies import get_graph
-from schemas.chat import ChatRequest, SummaryRequest, SummaryResponse, PatternInfo
+from schemas.chat import (
+    ChatRequest,
+    SummaryRequest,
+    SummaryResponse,
+    PatternInfo,
+    HistoryResponse,
+    HistoryMessage,
+    CorrectionInfo,
+)
 
 router = APIRouter(tags=["chat"])
 
@@ -99,6 +107,80 @@ async def chat(
             "X-Accel-Buffering": "no"  # Disable buffering for nginx
         }
     )
+
+
+@router.get("/history/{thread_id}", response_model=HistoryResponse)
+async def get_history(
+    thread_id: str,
+    graph: Annotated[CompiledStateGraph, Depends(get_graph)]
+):
+    """
+    Retrieve conversation history for a thread.
+
+    Used to restore conversation state on page refresh.
+    """
+    config: RunnableConfig = {"configurable": {"thread_id": thread_id}}
+
+    try:
+        state = graph.get_state(config)
+
+        if state is None or state.values is None:
+            return HistoryResponse(messages=[])
+
+        messages = state.values.get("messages", [])
+        corrections = state.values.get("corrections", [])
+
+        # Build a map of corrections by message index
+        # Corrections have message_id like "msg_N" where N is the message index
+        correction_map: dict[int, dict] = {}
+        for correction in corrections:
+            msg_id = correction.get("message_id", "")
+            if msg_id.startswith("msg_"):
+                try:
+                    idx = int(msg_id.split("_")[1])
+                    correction_map[idx] = correction
+                except (ValueError, IndexError):
+                    pass
+
+        # Transform messages to frontend format
+        result_messages: list[HistoryMessage] = []
+        user_msg_count = 0
+
+        for i, msg in enumerate(messages):
+            msg_type = getattr(msg, "type", None)
+            if msg_type == "human":
+                role = "user"
+                user_msg_count += 1
+                # Find correction for this user message
+                # Correction message_id uses 1-based index counting only user+assistant pairs
+                correction_data = correction_map.get(i + 1)
+                correction = None
+                if correction_data:
+                    correction = CorrectionInfo(
+                        original=correction_data.get("original", ""),
+                        corrected=correction_data.get("corrected", ""),
+                        issues=correction_data.get("issues", []),
+                        explanation=correction_data.get("explanation", "")
+                    )
+            elif msg_type == "ai":
+                role = "assistant"
+                correction = None
+            else:
+                continue
+
+            result_messages.append(HistoryMessage(
+                id=f"msg_{i}_{msg_type}",
+                role=role,
+                content=str(msg.content),
+                timestamp=0,  # LangGraph doesn't store timestamps
+                correction=correction
+            ))
+
+        return HistoryResponse(messages=result_messages)
+
+    except Exception as e:
+        # Return empty history on error
+        return HistoryResponse(messages=[])
 
 
 @router.post("/summary", response_model=SummaryResponse)

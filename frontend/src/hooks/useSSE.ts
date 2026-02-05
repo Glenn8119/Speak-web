@@ -43,12 +43,6 @@ const DEFAULT_CONFIG: Required<UseSSEConfig> = {
 
 /**
  * Custom hook for managing SSE connections to the chat API.
- *
- * Handles:
- * - EventSource connection lifecycle
- * - Parsing SSE events (thread_id, chat_response, correction, error, complete)
- * - Automatic reconnection with exponential backoff
- * - Integration with ChatContext for state updates
  */
 export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
   const {
@@ -72,12 +66,19 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentMessageIdRef = useRef<string | null>(null)
   const lastUserMessageIdRef = useRef<string | null>(null)
-  const executeRequestRef = useRef<((message: string) => void) | null>(null)
   const isCompleteHandledRef = useRef<boolean>(false)
+  const reconnectAttemptsRef = useRef(0)
+  const executeRequestRef = useRef<((message: string) => void) | null>(null)
+  const threadIdRef = useRef(threadId)
 
   // State
   const [isConnected, setIsConnected] = useState(false)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+
+  // Keep threadId ref in sync
+  useEffect(() => {
+    threadIdRef.current = threadId
+  }, [threadId])
 
   /**
    * Clean up EventSource and timeout refs
@@ -95,110 +96,74 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
   }, [])
 
   /**
-   * Handle thread_id event - store in state and localStorage
-   */
-  const handleThreadIdEvent = useCallback((data: ThreadIdEventData) => {
-    setThreadId(data.thread_id)
-  }, [setThreadId])
-
-  /**
-   * Handle chat_response event - update messages
-   */
-  const handleChatResponseEvent = useCallback((data: ChatResponseEventData) => {
-    // If we don't have an assistant message yet, create one
-    if (!currentMessageIdRef.current) {
-      const messageId = addMessage({
-        role: 'assistant',
-        content: data.content
-      })
-      currentMessageIdRef.current = messageId
-    } else {
-      // Update existing message content (for potential future streaming support)
-      updateMessageContent(currentMessageIdRef.current, data.content)
-    }
-    setLoading('chat', false)
-  }, [addMessage, updateMessageContent, setLoading])
-
-  /**
-   * Handle correction event - attach to user message
-   */
-  const handleCorrectionEvent = useCallback((correction: Correction) => {
-    if (lastUserMessageIdRef.current) {
-      attachCorrection(lastUserMessageIdRef.current, correction)
-    }
-    setLoading('correction', false)
-  }, [attachCorrection, setLoading])
-
-  /**
-   * Handle error event - display error and stop loading
-   */
-  const handleErrorEvent = useCallback((data: ErrorEventData) => {
-    const errorMessage = data.message || `Error in ${data.node || 'unknown'} node`
-    setError(errorMessage)
-
-    // Stop relevant loading states based on error node
-    if (data.node === 'chat') {
-      setLoading('chat', false)
-    } else if (data.node === 'correction') {
-      setLoading('correction', false)
-    } else {
-      // Unknown error - stop both
-      setLoading('chat', false)
-      setLoading('correction', false)
-    }
-  }, [setError, setLoading])
-
-  /**
-   * Handle complete event - cleanup and reset state
-   */
-  const handleCompleteEvent = useCallback(() => {
-    // Prevent duplicate handling
-    if (isCompleteHandledRef.current) return
-    isCompleteHandledRef.current = true
-
-    // Ensure all loading states are cleared
-    setLoading('chat', false)
-    setLoading('correction', false)
-
-    // Reset message refs for next interaction
-    currentMessageIdRef.current = null
-
-    // Reset reconnect attempts on successful completion
-    setReconnectAttempts(0)
-
-    // Close connection
-    cleanup()
-  }, [setLoading, cleanup])
-
-  /**
-   * Execute the SSE request (internal function for retry support)
+   * Execute the SSE request
    */
   const executeRequest = useCallback((message: string) => {
-    // Reset complete handled flag for new request
     isCompleteHandledRef.current = false
-
-    // Clean up any existing connection
     cleanup()
     setError(null)
-
-    // Reset assistant message ref
     currentMessageIdRef.current = null
 
-    // Set loading states
     setLoading('chat', true)
     setLoading('correction', true)
 
-    // Build the SSE request URL with query params
-    // Note: EventSource only supports GET, so we need to use fetch for POST
-    // We'll use fetch with ReadableStream to handle SSE from POST request
     const url = `${baseUrl}/chat`
-
     const requestBody = JSON.stringify({
       message,
-      thread_id: threadId || undefined
+      thread_id: threadIdRef.current || undefined
     })
 
-    // Use fetch for POST SSE (EventSource only supports GET)
+    // Inline handlers to avoid dependency issues
+    const onComplete = () => {
+      if (isCompleteHandledRef.current) return
+      isCompleteHandledRef.current = true
+
+      setLoading('chat', false)
+      setLoading('correction', false)
+      currentMessageIdRef.current = null
+      reconnectAttemptsRef.current = 0
+      setReconnectAttempts(0)
+      cleanup()
+    }
+
+    const onThreadId = (data: ThreadIdEventData) => {
+      setThreadId(data.thread_id)
+    }
+
+    const onChatResponse = (data: ChatResponseEventData) => {
+      if (!currentMessageIdRef.current) {
+        currentMessageIdRef.current = addMessage({
+          role: 'assistant',
+          content: data.content
+        })
+      } else {
+        // Reserved for future streaming support (stream by token)
+        updateMessageContent(currentMessageIdRef.current, data.content)
+      }
+      setLoading('chat', false)
+    }
+
+    const onCorrection = (correction: Correction) => {
+      if (lastUserMessageIdRef.current) {
+        attachCorrection(lastUserMessageIdRef.current, correction)
+      }
+      setLoading('correction', false)
+    }
+
+    const onError = (data: ErrorEventData) => {
+      const errorMessage = data.message || `Error in ${data.node || 'unknown'} node`
+      setError(errorMessage)
+
+      if (data.node === 'chat') {
+        setLoading('chat', false)
+      } else if (data.node === 'correction') {
+        setLoading('correction', false)
+      } else {
+        setLoading('chat', false)
+        setLoading('correction', false)
+      }
+    }
+
     fetch(url, {
       method: 'POST',
       headers: {
@@ -220,23 +185,21 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
 
         const decoder = new TextDecoder()
         let buffer = ''
+        let currentEventType = ''
+        let currentData = ''
 
         while (true) {
           const { done, value } = await reader.read()
 
           if (done) {
-            handleCompleteEvent()
+            onComplete()
             break
           }
 
           buffer += decoder.decode(value, { stream: true })
 
-          // Parse SSE events from buffer
           const lines = buffer.split('\n')
-          buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-          let currentEventType = ''
-          let currentData = ''
+          buffer = lines.pop() || ''
 
           for (const line of lines) {
             if (line.startsWith('event:')) {
@@ -244,38 +207,35 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
             } else if (line.startsWith('data:')) {
               currentData = line.slice(5).trim()
 
-              // Process the event
               if (currentEventType && currentData) {
                 try {
                   const parsedData = JSON.parse(currentData)
 
                   switch (currentEventType) {
                     case 'thread_id':
-                      handleThreadIdEvent(parsedData as ThreadIdEventData)
+                      onThreadId(parsedData as ThreadIdEventData)
                       break
                     case 'chat_response':
-                      handleChatResponseEvent(parsedData as ChatResponseEventData)
+                      onChatResponse(parsedData as ChatResponseEventData)
                       break
                     case 'correction':
-                      handleCorrectionEvent(parsedData as Correction)
+                      onCorrection(parsedData as Correction)
                       break
                     case 'error':
-                      handleErrorEvent(parsedData as ErrorEventData)
+                      onError(parsedData as ErrorEventData)
                       break
                     case 'complete':
-                      handleCompleteEvent()
+                      onComplete()
                       break
                   }
                 } catch (parseError) {
                   console.error('Failed to parse SSE data:', parseError)
                 }
 
-                // Reset for next event
                 currentEventType = ''
                 currentData = ''
               }
             } else if (line === '') {
-              // Empty line indicates end of event - reset
               currentEventType = ''
               currentData = ''
             }
@@ -286,40 +246,38 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
         console.error('SSE connection error:', error)
         setIsConnected(false)
 
-        // Attempt reconnection
-        if (reconnectAttempts < maxReconnectAttempts) {
-          const delay = reconnectBaseDelay * Math.pow(2, reconnectAttempts)
+        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+          const delay = reconnectBaseDelay * Math.pow(2, reconnectAttemptsRef.current)
           setError(`Connection lost. Reconnecting in ${delay / 1000}s...`)
 
           reconnectTimeoutRef.current = setTimeout(() => {
-            setReconnectAttempts(prev => prev + 1)
-            // Retry the request without adding user message again
+            reconnectAttemptsRef.current += 1
+            setReconnectAttempts(reconnectAttemptsRef.current)
             executeRequestRef.current?.(message)
           }, delay)
         } else {
-          handleErrorEvent({
+          onError({
             node: 'unknown',
             message: `Connection failed after ${maxReconnectAttempts} attempts. Please try again.`
           })
+          reconnectAttemptsRef.current = 0
           setReconnectAttempts(0)
         }
       })
   }, [
+    baseUrl,
+    maxReconnectAttempts,
+    reconnectBaseDelay,
     cleanup,
     setError,
     setLoading,
-    baseUrl,
-    threadId,
-    handleThreadIdEvent,
-    handleChatResponseEvent,
-    handleCorrectionEvent,
-    handleErrorEvent,
-    handleCompleteEvent,
-    reconnectAttempts,
-    maxReconnectAttempts,
-    reconnectBaseDelay
+    setThreadId,
+    addMessage,
+    updateMessageContent,
+    attachCorrection
   ])
 
+  // Keep ref in sync for recursive calls
   useEffect(() => {
     executeRequestRef.current = executeRequest
   }, [executeRequest])
@@ -328,14 +286,11 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
    * Send a message to the chat API via SSE
    */
   const sendMessage = useCallback((message: string) => {
-    // Add user message to state and store the ID for correction attachment
     const userMessageId = addMessage({
       role: 'user',
       content: message
     })
     lastUserMessageIdRef.current = userMessageId
-
-    // Execute the request
     executeRequest(message)
   }, [addMessage, executeRequest])
 

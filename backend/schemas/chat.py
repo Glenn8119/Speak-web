@@ -28,3 +28,25 @@ class SummaryResponse(BaseModel):
     corrections: list[dict]
     tips: str
     common_patterns: list[PatternInfo]
+
+
+class CorrectionInfo(BaseModel):
+    """Correction data for history response"""
+    original: str
+    corrected: str
+    issues: list[str]
+    explanation: str
+
+
+class HistoryMessage(BaseModel):
+    """Message structure for history response"""
+    id: str
+    role: str  # 'user' or 'assistant'
+    content: str
+    timestamp: int
+    correction: CorrectionInfo | None = None
+
+
+class HistoryResponse(BaseModel):
+    """Response model for history endpoint"""
+    messages: list[HistoryMessage]

@@ -98,6 +98,18 @@ export interface ErrorEventData {
 }
 
 /**
+ * Common pattern identified in corrections
+ */
+export interface PatternInfo {
+  /** Name of the error pattern */
+  pattern: string
+  /** Number of times this pattern occurred */
+  frequency: number
+  /** Suggested practice exercise */
+  suggestion: string
+}
+
+/**
  * Summary data structure returned from /summary endpoint
  */
 export interface Summary {
@@ -105,6 +117,8 @@ export interface Summary {
   corrections: Correction[]
   /** Part 2: AI-generated tips and common patterns */
   tips: string
+  /** Common error patterns with frequency and suggestions */
+  common_patterns: PatternInfo[]
 }
 
 /**

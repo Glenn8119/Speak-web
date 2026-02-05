@@ -44,6 +44,7 @@ type ChatAction =
       payload: { key: keyof LoadingState; value: boolean }
     }
   | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'LOAD_HISTORY'; payload: Message[] }
 
 // Reducer
 function chatReducer(state: ChatState, action: ChatAction): ChatState {
@@ -100,6 +101,12 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         error: action.payload
       }
 
+    case 'LOAD_HISTORY':
+      return {
+        ...state,
+        messages: action.payload
+      }
+
     default:
       return state
   }
@@ -128,11 +135,39 @@ interface ChatProviderProps {
 export function ChatProvider({ children }: ChatProviderProps) {
   const [state, dispatch] = useReducer(chatReducer, initialState)
 
-  // Load thread ID from localStorage on mount
+  // Load thread ID and history from localStorage on mount
   useEffect(() => {
     const savedThreadId = localStorage.getItem(THREAD_ID_STORAGE_KEY)
     if (savedThreadId) {
       dispatch({ type: 'SET_THREAD_ID', payload: savedThreadId })
+
+      // Fetch conversation history from backend
+      fetch(`http://localhost:8000/history/${savedThreadId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.messages && data.messages.length > 0) {
+            // Transform backend messages to frontend format
+            const messages: Message[] = data.messages.map(
+              (msg: {
+                id: string
+                role: string
+                content: string
+                timestamp: number
+                correction?: Correction
+              }) => ({
+                id: msg.id,
+                role: msg.role as 'user' | 'assistant',
+                content: msg.content,
+                timestamp: msg.timestamp || Date.now(),
+                correction: msg.correction
+              })
+            )
+            dispatch({ type: 'LOAD_HISTORY', payload: messages })
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load conversation history:', err)
+        })
     }
   }, [])
 

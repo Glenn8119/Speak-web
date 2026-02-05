@@ -88,20 +88,20 @@
 
 ## 10. Frontend - Summary Feature
 
-- [ ] 10.1 Implement summary request to POST /summary endpoint
-- [ ] 10.2 Create summary modal UI with two sections (corrections + tips)
-- [ ] 10.3 Display corrections list in Part 1
-- [ ] 10.4 Display AI tips and common patterns in Part 2
-- [ ] 10.5 Add close button and modal overlay
-- [ ] 10.6 Handle empty summary case (no corrections)
+- [x] 10.1 Implement summary request to POST /summary endpoint
+- [x] 10.2 Create summary modal UI with two sections (corrections + tips)
+- [x] 10.3 Display corrections list in Part 1
+- [x] 10.4 Display AI tips and common patterns in Part 2
+- [x] 10.5 Add close button and modal overlay
+- [x] 10.6 Handle empty summary case (no corrections)
 
 ## 11. Frontend - Thread Persistence
 
-- [ ] 11.1 Implement localStorage read on app initialization
-- [ ] 11.2 Load existing thread_id from localStorage if present
-- [ ] 11.3 Test page refresh with active conversation
-- [ ] 11.4 Test browser restart with localStorage persistence
-- [ ] 11.5 Implement thread_id clearing on new conversation
+- [x] 11.1 Implement localStorage read on app initialization
+- [x] 11.2 Load existing thread_id from localStorage if present
+- [x] 11.3 Test page refresh with active conversation
+- [x] 11.4 Test browser restart with localStorage persistence
+- [x] 11.5 Implement thread_id clearing on new conversation
 
 ## 12. Error Handling
 
