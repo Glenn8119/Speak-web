@@ -2,22 +2,6 @@
 Chat and summary endpoints with SSE streaming.
 """
 
-import json
-import logging
-import uuid
-from typing import Annotated
-
-from fastapi import APIRouter, Depends
-
-# Configure logger for chat endpoints
-logger = logging.getLogger(__name__)
-from fastapi.responses import StreamingResponse
-from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
-from langgraph.graph.state import CompiledStateGraph
-
-from dependencies import get_graph
 from schemas.chat import (
     ChatRequest,
     SummaryRequest,
@@ -27,6 +11,22 @@ from schemas.chat import (
     HistoryMessage,
     CorrectionInfo,
 )
+from dependencies import get_graph
+from langgraph.graph.state import CompiledStateGraph
+from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_anthropic import ChatAnthropic
+from fastapi.responses import StreamingResponse
+import json
+import logging
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+# Configure logger for chat endpoints
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter(tags=["chat"])
 
@@ -133,7 +133,8 @@ async def chat(
                     "thread_id": thread_id,
                     "error_type": type(e).__name__,
                     "error_message": str(e),
-                    "user_message": request.message[:100],  # Truncate for logging
+                    # Truncate for logging
+                    "user_message": request.message[:100],
                 },
                 exc_info=True
             )
@@ -302,39 +303,24 @@ async def get_summary(
             for c in corrections
         ])
 
-        # Summary tips prompt - focused on spoken English and encouraging tone
-        system_prompt = """You are a warm, encouraging English speaking coach celebrating a student's practice session!
+        # Optimized summary tips prompt (~40% fewer tokens)
+        system_prompt = """Analyze spoken English grammar patterns and give encouraging feedback.
 
-CONTEXT: This is a SPEAKING practice app. The corrections are from spoken English, not written text.
-Focus your feedback on natural spoken English patterns, not written conventions.
+From the corrections, identify:
+1. Common patterns needing practice (with frequency count)
+2. 2-3 actionable speaking tips
 
-Your task: Analyze the spoken grammar patterns and provide:
-1. Identify common SPEAKING patterns that could be improved (with frequency)
-2. Give 2-3 specific, actionable tips for speaking practice
-3. Celebrate their effort and progress!
-
-Important guidance:
-- Focus on patterns that affect spoken clarity (tenses, agreement, articles, prepositions)
-- Ignore capitalization/punctuation issues (these are from speech-to-text)
-- Suggest practice activities they can do while speaking (e.g., "Try describing your day using past tense")
-- Be genuinely warm and encouraging - speaking a new language takes courage!
+Focus on spoken clarity issues (tenses, agreement, articles). Ignore punctuation/capitalization.
 
 Output format (JSON):
 {
-    "common_patterns": [
-        {"pattern": "Name of speaking pattern", "frequency": N, "suggestion": "A specific speaking exercise to practice"}
-    ],
-    "tips": "A friendly 2-3 paragraph message that: (1) celebrates their effort and highlights something they did well, (2) explains 1-2 key patterns to focus on with simple tips, (3) ends with encouragement to keep speaking!"
+  "common_patterns": [{"pattern": "Pattern name", "frequency": N, "suggestion": "Practice exercise"}],
+  "tips": "2-3 paragraphs: (1) Celebrate effort (2) Key pattern + simple tip (3) Encouragement"
 }
 
-Example tips format:
-"Great job having this conversation! 🎉 You're getting more comfortable expressing your thoughts in English, and that's what matters most.
+Example tips: "Great conversation! 🎉 You're expressing yourself well.\n\nI noticed past/present tense mix-ups ('I go' vs 'I went'). Try narrating your day in past tense!\n\nKeep speaking - you're doing amazing! 🌟"
 
-I noticed you sometimes mix up past and present tense when telling stories (like saying 'I go' instead of 'I went'). A fun way to practice: try narrating your daily activities out loud in past tense, even just for a few minutes!
-
-Keep speaking - every conversation makes you more confident. You're doing amazing! 🌟"
-
-Be enthusiastic and specific! Make them excited to keep practicing."""
+Be warm and specific!"""
 
         analysis_request = f"""Please analyze these grammar corrections from a conversation:
 
