@@ -132,9 +132,4 @@
 
 ## 15. Documentation
 
-- [ ] 15.1 Add README.md with setup instructions
-- [ ] 15.2 Document environment variables needed
-- [ ] 15.3 Add API endpoint documentation
-- [ ] 15.4 Document LangGraph workflow structure
-- [ ] 15.5 Add frontend component documentation
-- [ ] 15.6 Document deployment considerations
+- [x] 15.1 Add README.md with setup instructions
