@@ -9,7 +9,7 @@ import type { Summary } from './types'
 
 function ChatApp() {
   const { loading, threadId, setLoading } = useChat()
-  const { sendMessage } = useSSE()
+  const { sendMessage, reconnectAttempts } = useSSE()
   const [summary, setSummary] = useState<Summary | null>(null)
 
   const handleOpenSummary = async () => {
@@ -51,7 +51,7 @@ function ChatApp() {
       </header>
 
       {/* Chat message list */}
-      <ChatContainer />
+      <ChatContainer reconnectAttempts={reconnectAttempts} />
 
       {/* Message input */}
       <MessageInput onSend={sendMessage} disabled={isInputDisabled} />

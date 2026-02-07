@@ -3,10 +3,14 @@ Chat and summary endpoints with SSE streaming.
 """
 
 import json
+import logging
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+
+# Configure logger for chat endpoints
+logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -65,36 +69,93 @@ async def chat(
                 yield f"event: thread_id\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
 
             # Stream graph updates
+            chat_succeeded = False
+            correction_succeeded = False
+
             for update in graph.stream(input_state, config, stream_mode="updates"):
                 # Each update is a dict with node name as key
                 for node_name, node_output in update.items():
-                    if node_name == "chat":
-                        # Extract the AI message
-                        messages = node_output.get("messages", [])
-                        if messages:
-                            ai_message = messages[0]
-                            chat_data = {
-                                "content": ai_message.content,
-                                "role": "assistant"
-                            }
-                            yield f"event: chat_response\ndata: {json.dumps(chat_data)}\n\n"
+                    try:
+                        if node_name == "chat":
+                            # Extract the AI message
+                            messages = node_output.get("messages", [])
+                            if messages:
+                                ai_message = messages[0]
+                                chat_data = {
+                                    "content": ai_message.content,
+                                    "role": "assistant"
+                                }
+                                yield f"event: chat_response\ndata: {json.dumps(chat_data)}\n\n"
+                                chat_succeeded = True
 
-                    elif node_name == "correction":
-                        # Extract the correction data
-                        corrections = node_output.get("corrections", [])
-                        if corrections:
-                            # Get the last correction (the one just added)
-                            correction = corrections[-1]
-                            yield f"event: correction\ndata: {json.dumps(correction)}\n\n"
+                        elif node_name == "correction":
+                            # Extract the correction data
+                            corrections = node_output.get("corrections", [])
+                            if corrections:
+                                # Get the last correction (the one just added)
+                                correction = corrections[-1]
+                                yield f"event: correction\ndata: {json.dumps(correction)}\n\n"
+                                correction_succeeded = True
 
-            # Send completion event
-            yield f"event: complete\ndata: {json.dumps({'status': 'done'})}\n\n"
+                    except Exception as node_error:
+                        # Log node-specific error
+                        logger.error(
+                            f"Error processing {node_name} node output",
+                            extra={
+                                "thread_id": thread_id,
+                                "node_name": node_name,
+                                "error_type": type(node_error).__name__,
+                                "error_message": str(node_error),
+                            },
+                            exc_info=True
+                        )
+
+                        # Send node-specific error event
+                        error_data = {
+                            "node": node_name,
+                            "message": f"Unable to get {node_name} response. The conversation can continue."
+                        }
+                        yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
+
+            # Send completion event with status
+            completion_data = {
+                "status": "done",
+                "chat_succeeded": chat_succeeded,
+                "correction_succeeded": correction_succeeded
+            }
+            yield f"event: complete\ndata: {json.dumps(completion_data)}\n\n"
 
         except Exception as e:
-            # Send error event
+            # Log the error with full context
+            logger.error(
+                "Chat stream error",
+                extra={
+                    "thread_id": thread_id,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
+                    "user_message": request.message[:100],  # Truncate for logging
+                },
+                exc_info=True
+            )
+
+            # Determine user-friendly error message
+            error_type = type(e).__name__
+            if "APIConnectionError" in error_type or "ConnectionError" in error_type:
+                user_message = "Unable to connect to the AI service. Please try again in a moment."
+            elif "RateLimitError" in error_type:
+                user_message = "The service is busy right now. Please wait a moment and try again."
+            elif "AuthenticationError" in error_type:
+                user_message = "There's a configuration issue with the AI service. Please contact support."
+            elif "Timeout" in error_type:
+                user_message = "The request took too long. Please try again."
+            else:
+                user_message = "Something went wrong. Please try again."
+
+            # Send error event with user-friendly message
             error_data = {
-                "error": str(e),
-                "type": type(e).__name__
+                "node": "unknown",
+                "message": user_message,
+                "error_type": error_type
             }
             yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
 
