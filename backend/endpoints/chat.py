@@ -12,6 +12,7 @@ from schemas.chat import (
     CorrectionInfo,
 )
 from dependencies import get_graph
+from utils import strip_markdown_code_blocks
 from langgraph.graph.state import CompiledStateGraph
 from langchain_core.runnables import RunnableConfig
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -342,15 +343,8 @@ Identify patterns and provide personalized tips."""
             content = response.content if isinstance(
                 response.content, str) else str(response.content)
 
-            # Strip markdown code blocks if present
-            content = content.strip()
-            if content.startswith("```json"):
-                content = content[7:]
-            if content.startswith("```"):
-                content = content[3:]
-            if content.endswith("```"):
-                content = content[:-3]
-            content = content.strip()
+            # Strip markdown code blocks if present (Claude sometimes wraps JSON)
+            content = strip_markdown_code_blocks(content)
 
             analysis = json.loads(content)
 

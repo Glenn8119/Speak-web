@@ -53,7 +53,7 @@ export default function MessageInput({
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         disabled={disabled}
-        placeholder='Type a message... (Enter to send'
+        placeholder='Type a message... (Enter to send)'
         rows={1}
         className='flex-1 resize-none bg-gray-800 text-gray-100 placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm border border-gray-700 focus:border-indigo-500 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden'
       />

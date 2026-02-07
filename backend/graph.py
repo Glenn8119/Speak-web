@@ -171,19 +171,14 @@ Be encouraging! Focus on helping them speak more naturally and confidently."""
 
     # Parse the JSON response
     try:
+        from utils import strip_markdown_code_blocks
+
         # Ensure response.content is a string
         content = response.content if isinstance(
             response.content, str) else str(response.content)
 
-        # Strip markdown code blocks if present (Claude sometimes wraps JSON in ```json ... ```)
-        content = content.strip()
-        if content.startswith("```json"):
-            content = content[7:]  # Remove ```json
-        if content.startswith("```"):
-            content = content[3:]  # Remove ```
-        if content.endswith("```"):
-            content = content[:-3]  # Remove trailing ```
-        content = content.strip()
+        # Strip markdown code blocks if present (Claude sometimes wraps JSON)
+        content = strip_markdown_code_blocks(content)
 
         correction_data = json.loads(content)
         correction = {
