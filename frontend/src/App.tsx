@@ -8,7 +8,7 @@ import SummaryModal from './components/SummaryModal'
 import type { Summary } from './types'
 
 function ChatApp() {
-  const { loading, threadId, setLoading } = useChat()
+  const { loading, threadId, setLoading, clearThread } = useChat()
   const { sendMessage, reconnectAttempts } = useSSE()
   const [summary, setSummary] = useState<Summary | null>(null)
 
@@ -34,15 +34,15 @@ function ChatApp() {
   const isInputDisabled = loading.chat || loading.correction
 
   return (
-    <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
+    <div className='flex flex-col h-screen bg-gray-950 text-gray-100'>
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
-        <h1 className="text-lg font-semibold text-indigo-400">Speak</h1>
-        <div className="flex items-center gap-4">
+      <header className='flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0'>
+        <h1 className='text-lg font-semibold text-indigo-300'>Speak</h1>
+        <div className='flex items-center gap-4'>
           <button
             onClick={handleOpenSummary}
             disabled={!threadId || loading.summary}
-            className="text-xs text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className='text-xs text-gray-300 hover:text-gray-100 transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed'
           >
             {loading.summary ? 'Generating…' : 'Summary'}
           </button>
@@ -58,7 +58,15 @@ function ChatApp() {
 
       {/* Summary modal (rendered when summary data is available) */}
       {summary && (
-        <SummaryModal summary={summary} onClose={() => setSummary(null)} />
+        <SummaryModal
+          summary={summary}
+          onNewConversation={() => {
+            clearThread()
+            setTimeout(() => {
+              setSummary(null)
+            }, 100)
+          }}
+        />
       )}
     </div>
   )

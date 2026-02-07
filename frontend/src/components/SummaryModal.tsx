@@ -1,56 +1,70 @@
+import { useState } from 'react'
 import type { Summary } from '../types'
 
 interface SummaryModalProps {
   summary: Summary
-  onClose: () => void
+  onNewConversation: () => void
 }
 
-export default function SummaryModal({ summary, onClose }: SummaryModalProps) {
+export default function SummaryModal({
+  summary,
+  onNewConversation
+}: SummaryModalProps) {
+  const [isClosing, setIsClosing] = useState(false)
   const hasCorrections = summary.corrections.length > 0
+
+  const handleClose = () => {
+    setIsClosing(true)
+    onNewConversation()
+  }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-      onClick={onClose}
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 ${isClosing ? 'animate-fade-out' : 'animate-fade-in'}`}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto mx-4 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+        className={`bg-gray-900 border border-gray-700 rounded-2xl w-full max-w-lg max-h-[80vh] mx-4 shadow-xl flex flex-col ${isClosing ? 'animate-scale-out' : 'animate-scale-in'}`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-800">
-          <h2 className="text-lg font-semibold text-gray-100">Practice Summary</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-300 transition-colors text-xl leading-none"
-            aria-label="Close"
-          >
-            ×
-          </button>
+        {/* Header - fixed */}
+        <div className='p-5 border-b border-gray-800 shrink-0'>
+          <h2 className='text-lg font-semibold text-gray-100'>
+            Practice Summary
+          </h2>
         </div>
 
-        <div className="p-5 space-y-5">
+        {/* Scrollable content */}
+        <div className='p-5 space-y-5 overflow-y-auto flex-1'>
           {/* Part 1: Corrections list */}
           <section>
-            <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-3">
+            <h3 className='text-sm font-medium text-gray-400 uppercase tracking-wide mb-3'>
               Corrections
             </h3>
             {hasCorrections ? (
-              <div className="space-y-3">
+              <div className='space-y-3'>
                 {summary.corrections.map((correction, i) => (
-                  <div key={i} className="bg-gray-800 rounded-lg p-3 space-y-1.5">
-                    <div className="flex gap-2 text-xs">
-                      <span className="text-gray-500">Original:</span>
-                      <span className="text-gray-300">{correction.original}</span>
+                  <div
+                    key={i}
+                    className='bg-gray-800 rounded-lg p-3 space-y-1.5'
+                  >
+                    <div className='flex gap-2 text-xs'>
+                      <span className='text-gray-500'>Original:</span>
+                      <span className='text-gray-300'>
+                        {correction.original}
+                      </span>
                     </div>
-                    <div className="flex gap-2 text-xs">
-                      <span className="text-gray-500">Corrected:</span>
-                      <span className="text-green-300">{correction.corrected}</span>
+                    <div className='flex gap-2 text-xs'>
+                      <span className='text-gray-500'>Corrected:</span>
+                      <span className='text-green-300'>
+                        {correction.corrected}
+                      </span>
                     </div>
                     {correction.issues.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-0.5">
+                      <div className='flex flex-wrap gap-1 pt-0.5'>
                         {correction.issues.map((issue, j) => (
-                          <span key={j} className="text-xs bg-gray-700 text-yellow-300 px-2 py-0.5 rounded-full">
+                          <span
+                            key={j}
+                            className='text-xs bg-gray-700 text-yellow-300 px-2 py-0.5 rounded-full'
+                          >
                             {issue}
                           </span>
                         ))}
@@ -60,7 +74,7 @@ export default function SummaryModal({ summary, onClose }: SummaryModalProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-green-300 text-sm">
+              <p className='text-green-300 text-sm'>
                 No corrections recorded — your grammar has been great!
               </p>
             )}
@@ -69,19 +83,23 @@ export default function SummaryModal({ summary, onClose }: SummaryModalProps) {
           {/* Part 2: Common patterns */}
           {summary.common_patterns && summary.common_patterns.length > 0 && (
             <section>
-              <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-3">
+              <h3 className='text-sm font-medium text-gray-400 uppercase tracking-wide mb-3'>
                 Common Patterns
               </h3>
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 {summary.common_patterns.map((pattern, i) => (
-                  <div key={i} className="bg-gray-800 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-indigo-300">{pattern.pattern}</span>
-                      <span className="text-xs bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded-full">
+                  <div key={i} className='bg-gray-800 rounded-lg p-3'>
+                    <div className='flex items-center justify-between mb-1'>
+                      <span className='text-sm font-medium text-indigo-300'>
+                        {pattern.pattern}
+                      </span>
+                      <span className='text-xs bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded-full'>
                         {pattern.frequency}×
                       </span>
                     </div>
-                    <p className="text-xs text-gray-400">{pattern.suggestion}</p>
+                    <p className='text-xs text-gray-400'>
+                      {pattern.suggestion}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -91,14 +109,25 @@ export default function SummaryModal({ summary, onClose }: SummaryModalProps) {
           {/* Part 2: AI-generated tips */}
           {summary.tips && (
             <section>
-              <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wide mb-2">
+              <h3 className='text-sm font-medium text-gray-400 uppercase tracking-wide mb-2'>
                 Practice Tips
               </h3>
-              <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
+              <p className='text-gray-300 text-sm leading-relaxed whitespace-pre-wrap'>
                 {summary.tips}
               </p>
             </section>
           )}
+        </div>
+
+        {/* Footer - fixed */}
+        <div className='p-5 border-t border-gray-800 shrink-0'>
+          <button
+            onClick={handleClose}
+            disabled={isClosing}
+            className='w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition-colors cursor-pointer disabled:opacity-50'
+          >
+            Start a new conversation
+          </button>
         </div>
       </div>
     </div>

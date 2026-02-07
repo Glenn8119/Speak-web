@@ -125,9 +125,9 @@
 
 ## 14. Polish & Optimization
 
-- [ ] 14.1 Optimize prompt token usage
-- [ ] 14.3 Improve UI/UX based on testing feedback
-- [ ] 14.4 Add loading animations and transitions
+- [x] 14.1 Optimize prompt token usage
+- [x] 14.3 Improve UI/UX based on testing feedback
+- [x] 14.4 Add loading animations and transitions
 - [ ] 14.5 Optimize SSE connection management
 - [ ] 14.6 Review and refactor code for clarity
 

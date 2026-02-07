@@ -17,7 +17,7 @@ export default function ChatContainer({
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading.chat, loading.correction, error])
+  }, [messages, loading.chat, error])
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
@@ -34,10 +34,7 @@ export default function ChatContainer({
         <ChatMessage key={message.id} message={message} />
       ))}
 
-      <div className="flex flex-col gap-2">
-        {loading.chat && <LoadingIndicator type="chat" />}
-        {loading.correction && <LoadingIndicator type="correction" />}
-      </div>
+      {loading.chat && <LoadingIndicator type="chat" />}
 
       <div ref={bottomRef} />
     </div>

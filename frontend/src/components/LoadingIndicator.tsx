@@ -21,7 +21,7 @@ export default function LoadingIndicator({ type }: LoadingIndicatorProps) {
   const { label, dotColor, align } = config[type]
 
   return (
-    <div className={`flex ${align}`}>
+    <div className={`flex ${align} animate-fade-in`}>
       <div className="flex items-center gap-1.5 bg-gray-800 px-3 py-2 rounded-xl">
         <span className="text-gray-400 text-xs">{label}</span>
         <div className="flex gap-0.5">
