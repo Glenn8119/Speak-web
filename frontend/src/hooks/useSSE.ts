@@ -9,7 +9,8 @@ import type {
   Correction,
   ThreadIdEventData,
   ChatResponseEventData,
-  ErrorEventData
+  ErrorEventData,
+  AudioChunkEventData
 } from '../types'
 
 /** Configuration for the useSSE hook */
@@ -20,6 +21,8 @@ interface UseSSEConfig {
   maxReconnectAttempts?: number
   /** Base delay in ms between reconnection attempts (exponential backoff) */
   reconnectBaseDelay?: number
+  /** Callback when audio chunk is received (for TTS playback) */
+  onAudioChunk?: (data: AudioChunkEventData) => void
 }
 
 /** Return type for the useSSE hook */
@@ -35,17 +38,17 @@ interface UseSSEReturn {
 }
 
 /** Default configuration values */
-const DEFAULT_CONFIG: Required<UseSSEConfig> = {
+const DEFAULT_CONFIG = {
   baseUrl: 'http://localhost:8000',
   maxReconnectAttempts: 3,
   reconnectBaseDelay: 1000
-}
+} as const
 
 /**
  * Custom hook for managing SSE connections to the chat API.
  */
 export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
-  const { baseUrl, maxReconnectAttempts, reconnectBaseDelay } = {
+  const { baseUrl, maxReconnectAttempts, reconnectBaseDelay, onAudioChunk } = {
     ...DEFAULT_CONFIG,
     ...config
   }
@@ -236,6 +239,12 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
                       case 'correction':
                         onCorrection(parsedData as Correction)
                         break
+                      case 'audio_chunk':
+                        // Handle audio chunk event - play audio without blocking text
+                        if (onAudioChunk) {
+                          onAudioChunk(parsedData as AudioChunkEventData)
+                        }
+                        break
                       case 'error':
                         onError(parsedData as ErrorEventData)
                         break
@@ -291,7 +300,8 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
       setThreadId,
       addMessage,
       updateMessageContent,
-      attachCorrection
+      attachCorrection,
+      onAudioChunk
     ]
   )
 

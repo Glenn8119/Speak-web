@@ -98,6 +98,16 @@ export interface ErrorEventData {
 }
 
 /**
+ * Audio chunk event data (TTS audio)
+ */
+export interface AudioChunkEventData {
+  /** Base64-encoded audio data */
+  audio: string
+  /** Audio format (e.g., 'opus') */
+  format: string
+}
+
+/**
  * Common pattern identified in corrections
  */
 export interface PatternInfo {

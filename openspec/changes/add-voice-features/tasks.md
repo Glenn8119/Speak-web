@@ -29,60 +29,60 @@
 
 ## 5. Frontend Speech Recognition Hook
 
-- [ ] 5.1 Create frontend/src/hooks/useSpeechRecognition.ts
-- [ ] 5.2 Initialize SpeechRecognition with language 'en-US', continuous: false, interimResults: true
-- [ ] 5.3 Implement start/stop recording functions
-- [ ] 5.4 Handle interim results (update input field in real-time)
-- [ ] 5.5 Handle final results (update input field, stop recording, auto-submit)
-- [ ] 5.6 Add error handling for recognition errors (network, no-speech, aborted)
-- [ ] 5.7 Add browser support detection (disable mic button if unsupported)
-- [ ] 5.8 Add timeout handling (stop recording if no speech detected)
+- [x] 5.1 Create frontend/src/hooks/useSpeechRecognition.ts
+- [x] 5.2 Initialize SpeechRecognition with language 'en-US', continuous: false, interimResults: true
+- [x] 5.3 Implement start/stop recording functions
+- [x] 5.4 Handle interim results (update input field in real-time)
+- [x] 5.5 Handle final results (update input field, stop recording, auto-submit)
+- [x] 5.6 Add error handling for recognition errors (network, no-speech, aborted)
+- [x] 5.7 Add browser support detection (disable mic button if unsupported)
+- [x] 5.8 Add timeout handling (stop recording if no speech detected)
 
 ## 6. Frontend Audio Playback Hook
 
-- [ ] 6.1 Create frontend/src/hooks/useAudioPlayback.ts
-- [ ] 6.2 Initialize AudioContext on mount
-- [ ] 6.3 Implement base64 → ArrayBuffer → AudioBuffer decoding
-- [ ] 6.4 Implement audio playback using AudioContext.createBufferSource()
-- [ ] 6.5 Add error handling for audio decode failures (log error, don't block text)
-- [ ] 6.6 Handle AudioContext suspended state (resume on user interaction)
-- [ ] 6.7 Implement auto-play after text display completes
+- [x] 6.1 Create frontend/src/hooks/useAudioPlayback.ts
+- [x] 6.2 Initialize AudioContext on mount
+- [x] 6.3 Implement base64 → ArrayBuffer → AudioBuffer decoding
+- [x] 6.4 Implement audio playback using AudioContext.createBufferSource()
+- [x] 6.5 Add error handling for audio decode failures (log error, don't block text)
+- [x] 6.6 Handle AudioContext suspended state (resume on user interaction)
+- [x] 6.7 Implement auto-play after text display completes
 
 ## 7. Frontend SSE Integration
 
-- [ ] 7.1 Update frontend/src/hooks/useSSE.ts to handle 'audio_chunk' events
-- [ ] 7.2 Parse audio_chunk event data (extract base64 audio and format)
-- [ ] 7.3 Integrate with useAudioPlayback hook to play audio
-- [ ] 7.4 Ensure audio playback doesn't block text display
+- [x] 7.1 Update frontend/src/hooks/useSSE.ts to handle 'audio_chunk' events
+- [x] 7.2 Parse audio_chunk event data (extract base64 audio and format)
+- [x] 7.3 Integrate with useAudioPlayback hook to play audio
+- [x] 7.4 Ensure audio playback doesn't block text display
 
 ## 8. Frontend UI Updates
 
-- [ ] 8.1 Add microphone button to frontend/src/components/ChatInput.tsx
-- [ ] 8.2 Show recording state UI (visual indicator when recording)
-- [ ] 8.3 Display error message if Web Speech API not supported
-- [ ] 8.4 Ensure text input remains functional alongside voice input
-- [ ] 8.5 Handle switching between voice and text input (clear interim transcript)
-- [ ] 8.6 Add empty transcript handling (don't send message if transcript is empty)
+- [x] 8.1 Add microphone button to frontend/src/components/ChatInput.tsx
+- [x] 8.2 Show recording state UI (visual indicator when recording)
+- [x] 8.3 Display error message if Web Speech API not supported
+- [x] 8.4 Ensure text input remains functional alongside voice input
+- [x] 8.5 Handle switching between voice and text input (clear interim transcript)
+- [x] 8.6 Add empty transcript handling (don't send message if transcript is empty)
 
 ## 9. Testing
 
-- [ ] 9.1 Test TTS node generates valid Opus audio
-- [ ] 9.2 Test SSE streams audio_chunk events correctly
-- [ ] 9.3 Test graph executes in correct order (dispatch → chat → tts → END, correction in parallel)
-- [ ] 9.4 Test error handling when OpenAI TTS API fails
-- [ ] 9.5 Test microphone captures speech correctly
-- [ ] 9.6 Test transcript displays in real-time (interim results)
-- [ ] 9.7 Test audio plays after chat response appears
-- [ ] 9.8 Test graceful degradation when Web Speech API not supported
-- [ ] 9.9 Test no UI blocking during audio playback
-- [ ] 9.10 Test end-to-end: speak → transcribe → chat → TTS → playback
-- [ ] 9.11 Test corrections still work in parallel with TTS
-- [ ] 9.12 Test thread persistence works with new TTS node
-- [ ] 9.13 Test multiple messages in same thread (each gets own audio)
+- [x] 9.1 Test TTS node generates valid Opus audio
+- [x] 9.2 Test SSE streams audio_chunk events correctly
+- [x] 9.3 Test graph executes in correct order (dispatch → chat → tts → END, correction in parallel)
+- [x] 9.4 Test error handling when OpenAI TTS API fails
+- [x] 9.5 Test microphone captures speech correctly
+- [x] 9.6 Test transcript displays in real-time (interim results)
+- [x] 9.7 Test audio plays after chat response appears
+- [x] 9.8 Test graceful degradation when Web Speech API not supported
+- [x] 9.9 Test no UI blocking during audio playback
+- [x] 9.10 Test end-to-end: speak → transcribe → chat → TTS → playback
+- [x] 9.11 Test corrections still work in parallel with TTS
+- [x] 9.12 Test thread persistence works with new TTS node
+- [x] 9.13 Test multiple messages in same thread (each gets own audio)
 
 ## 10. Documentation
 
-- [ ] 10.1 Update README.md with voice feature description
-- [ ] 10.2 Update backend/.env.example with OPENAI_API_KEY
-- [ ] 10.3 Add browser compatibility notes to documentation
-- [ ] 10.4 Document SSE event schema for audio_chunk
+- [x] 10.1 Update README.md with voice feature description
+- [x] 10.2 Update backend/.env.example with OPENAI_API_KEY
+- [x] 10.3 Add browser compatibility notes to documentation
+- [x] 10.4 Document SSE event schema for audio_chunk

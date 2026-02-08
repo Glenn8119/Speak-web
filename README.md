@@ -16,6 +16,7 @@
 ## ✨ Features
 
 - **🤖 AI Conversation Partner** - Chat naturally with an encouraging AI that helps you practice everyday English
+- **🎤 Voice Input & Output** - Speak your messages and hear AI responses with natural text-to-speech
 - **📝 Real-time Grammar Correction** - Get instant feedback on grammar errors as you chat
 - **⚡ Parallel Processing** - Chat response and grammar analysis run simultaneously for faster feedback
 - **💾 Conversation Persistence** - Your conversations are saved and restored across page refreshes
@@ -31,6 +32,7 @@
 - **Python 3.12+** with [uv](https://github.com/astral-sh/uv) package manager
 - **Node.js 18+** with [pnpm](https://pnpm.io/)
 - **Anthropic API Key** from [Anthropic Console](https://console.anthropic.com/)
+- **OpenAI API Key** from [OpenAI Platform](https://platform.openai.com/) (for text-to-speech)
 
 ### Installation
 
@@ -53,9 +55,10 @@
    # Copy the example env file
    cp backend/.env.example backend/.env
 
-   # Add your Anthropic API key
-   # Edit backend/.env and add your key:
+   # Add your API keys
+   # Edit backend/.env and add:
    # ANTHROPIC_API_KEY=sk-ant-api03-...
+   # OPENAI_API_KEY=sk-...
    ```
 
 4. **Start the development servers**
@@ -146,6 +149,7 @@ Create a `.env` file in the `backend/` directory:
 ```bash
 # Required
 ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+OPENAI_API_KEY=sk-your-key-here
 
 # Optional (defaults shown)
 # LOG_LEVEL=INFO
@@ -168,15 +172,65 @@ See `backend/.env.example` for a template.
 
 ### SSE Events (from `/chat`)
 
-| Event           | Description                |
-| --------------- | -------------------------- |
-| `thread_id`     | New conversation thread ID |
-| `chat_response` | AI conversation response   |
-| `correction`    | Grammar correction data    |
-| `error`         | Node failure information   |
-| `complete`      | Stream completion status   |
+| Event           | Description                        |
+| --------------- | ---------------------------------- |
+| `thread_id`     | New conversation thread ID         |
+| `chat_response` | AI conversation response           |
+| `correction`    | Grammar correction data            |
+| `audio_chunk`   | Base64-encoded audio (Opus format) |
+| `error`         | Node failure information           |
+| `complete`      | Stream completion status           |
 
 For detailed API documentation, visit http://localhost:8000/docs when the backend is running.
+
+---
+
+## 🎤 Voice Features
+
+### Voice Input (Speech-to-Text)
+
+The app uses the browser-native **Web Speech API** for voice input:
+
+- Click the microphone button to start recording
+- Speak naturally in English
+- Your speech is transcribed in real-time
+- The message is automatically sent when you finish speaking
+
+**Browser Compatibility:**
+
+| Browser | Support                                   |
+| ------- | ----------------------------------------- |
+| Chrome  | ✅ Full                                   |
+| Edge    | ✅ Full                                   |
+| Firefox | ✅ Full                                   |
+| Safari  | ⚠️ Limited (may not work on all versions) |
+
+> **Note:** If voice input is not supported in your browser, the microphone button will be disabled. Text input remains fully functional as a fallback.
+
+### Voice Output (Text-to-Speech)
+
+AI responses are automatically converted to speech using **OpenAI TTS API**:
+
+- **Model:** `tts-1` (optimized for low latency)
+- **Voice:** `nova` (friendly, natural female voice)
+- **Format:** Opus (high quality, small file size)
+- **Playback:** Automatic after text response appears
+
+Audio playback is non-blocking - you can continue using the app while listening to responses.
+
+### SSE Event Schema: `audio_chunk`
+
+When the backend generates audio, it streams an `audio_chunk` event:
+
+```typescript
+event: audio_chunk
+data: {
+  "audio": "base64_encoded_opus_data",
+  "format": "opus"
+}
+```
+
+The frontend automatically decodes and plays the audio using the Web Audio API.
 
 ---
 
@@ -187,15 +241,19 @@ For detailed API documentation, visit http://localhost:8000/docs when the backen
 The backend uses LangGraph for AI orchestration with parallel execution:
 
 ```
-START → dispatch → ┬→ chat_node ────→ END
-                   └→ correction_node → END
+                   ┌→ correction_node → END
+                   │
+START → dispatch → ┤
+                   │
+                   └→ chat_node → tts_node → END
 ```
 
 - **dispatch_node**: Entry point that fans out to parallel nodes
-- **chat_node**: Generates friendly conversational AI responses
-- **correction_node**: Analyzes grammar and returns structured corrections
+- **chat_node**: Generates friendly conversational AI responses using Claude
+- **tts_node**: Converts chat response to speech using OpenAI TTS (runs in series after chat)
+- **correction_node**: Analyzes grammar and returns structured corrections (runs in parallel)
 
-Both nodes execute in parallel, streaming results via SSE as they complete.
+Chat and corrections execute in parallel. TTS runs in series after chat completes, streaming audio via SSE.
 
 ### State Persistence
 

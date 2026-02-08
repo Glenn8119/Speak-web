@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ChatProvider, useChat } from './context/ChatContext'
 import { useSSE } from './hooks/useSSE'
+import { useAudioPlayback } from './hooks/useAudioPlayback'
 import ChatContainer from './components/ChatContainer'
 import MessageInput from './components/MessageInput'
 import NewConversationButton from './components/NewConversationButton'
@@ -9,7 +10,12 @@ import type { Summary } from './types'
 
 function ChatApp() {
   const { loading, threadId, setLoading, clearThread } = useChat()
-  const { sendMessage, reconnectAttempts } = useSSE()
+  const { playAudio } = useAudioPlayback()
+  const { sendMessage, reconnectAttempts } = useSSE({
+    onAudioChunk: (data) => {
+      playAudio(data.audio)
+    }
+  })
   const [summary, setSummary] = useState<Summary | null>(null)
 
   const handleOpenSummary = async () => {
