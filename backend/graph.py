@@ -26,10 +26,14 @@ class GraphState(TypedDict):
                   Uses add_messages reducer to append new messages.
         corrections: List of grammar corrections for user messages.
         thread_id: Persistent conversation identifier for checkpointing.
+        tts_audio: Base64-encoded audio from TTS (transient, not persisted).
+        tts_format: Audio format (e.g., 'opus'). Transient, not persisted.
     """
     messages: Annotated[Sequence[BaseMessage], add_messages]
     corrections: list[Correction]
     thread_id: str
+    tts_audio: str | None
+    tts_format: str | None
 
 
 # Node implementations
@@ -206,6 +210,83 @@ Be encouraging! Focus on helping them speak more naturally and confidently."""
         return {"corrections": new_corrections}
 
 
+def tts_node(state: GraphState) -> dict:
+    """
+    Generate text-to-speech audio for the AI chat response.
+
+    Uses OpenAI TTS API with model 'tts-1', voice 'nova', format 'opus'.
+    Audio is returned as base64-encoded data for SSE streaming.
+
+    IMPORTANT: Audio data is NOT added to graph state to avoid bloating
+    checkpoints. The audio is only returned in the stream output.
+
+    Args:
+        state: Current graph state with conversation history
+
+    Returns:
+        Dictionary with tts_audio (base64) and tts_format, or empty dict on error
+    """
+    import base64
+    import logging
+    from openai import OpenAI
+
+    logger = logging.getLogger(__name__)
+
+    # Get the last AI message from conversation history
+    ai_messages = [msg for msg in state["messages"]
+                   if hasattr(msg, 'type') and msg.type == "ai"]
+
+    if not ai_messages:
+        # No AI message to convert - skip TTS
+        return {"tts_audio": None, "tts_format": None}
+
+    last_ai_message = ai_messages[-1]
+    text_content = last_ai_message.content
+
+    # Handle empty or null chat responses (task 2.5)
+    if not text_content or not text_content.strip():
+        logger.info("TTS skipped: empty or null chat response")
+        return {"tts_audio": None, "tts_format": None}
+
+    try:
+        # Initialize OpenAI client (reads OPENAI_API_KEY from env)
+        client = OpenAI()
+
+        # Call OpenAI TTS API (task 2.2)
+        # Model: tts-1 (low latency), Voice: nova (friendly), Format: opus (small size)
+        response = client.audio.speech.create(
+            model="tts-1",
+            voice="nova",
+            input=text_content,
+            response_format="opus"
+        )
+
+        # Get audio bytes and encode as base64 (task 2.3)
+        audio_bytes = response.content
+        audio_base64 = base64.b64encode(audio_bytes).decode("utf-8")
+
+        # Return audio data for SSE streaming (task 2.6)
+        # Note: This is NOT added to GraphState - only accessible during streaming
+        return {
+            "tts_audio": audio_base64,
+            "tts_format": "opus"
+        }
+
+    except Exception as e:
+        # Error handling for TTS API failures (task 2.4)
+        # Log error and continue without audio - don't block text response
+        logger.error(
+            "TTS generation failed",
+            extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "text_length": len(text_content) if text_content else 0,
+            },
+            exc_info=True
+        )
+        return {"tts_audio": None, "tts_format": None}
+
+
 def dispatch_node(state: GraphState) -> dict:
     """
     Entry point for parallel execution of chat and correction nodes.
@@ -228,13 +309,14 @@ def dispatch_node(state: GraphState) -> dict:
 
 def create_workflow():
     """
-    Create the LangGraph workflow with parallel chat and correction nodes.
+    Create the LangGraph workflow with parallel chat/TTS and correction nodes.
 
     Graph structure:
-        START -> dispatch -> [chat_node, correction_node] -> END
+        START -> dispatch -> chat -> tts -> END
+                         \-> correction -----> END
 
-    The chat and correction nodes execute in parallel, streaming results
-    independently as they complete.
+    The chat node executes first, then TTS generates audio in series.
+    The correction node runs in parallel with chat/tts chain.
 
     Returns:
         Compiled StateGraph ready for execution
@@ -247,17 +329,21 @@ def create_workflow():
     # Add nodes
     workflow.add_node("dispatch", dispatch_node)
     workflow.add_node("chat", chat_node)
+    workflow.add_node("tts", tts_node)
     workflow.add_node("correction", correction_node)
 
     # Set entry point
     workflow.set_entry_point("dispatch")
 
-    # Add parallel edges from dispatch to both chat and correction
+    # Add parallel edges from dispatch to chat and correction
     workflow.add_edge("dispatch", "chat")
     workflow.add_edge("dispatch", "correction")
 
-    # Both nodes complete independently
-    workflow.add_edge("chat", END)
+    # Chat -> TTS -> END (series)
+    workflow.add_edge("chat", "tts")
+    workflow.add_edge("tts", END)
+
+    # Correction -> END (parallel with chat/tts chain)
     workflow.add_edge("correction", END)
 
     return workflow

@@ -98,6 +98,17 @@ async def chat(
                                 yield f"event: correction\ndata: {json.dumps(correction)}\n\n"
                                 correction_succeeded = True
 
+                        elif node_name == "tts":
+                            # Extract and stream audio data (task 4.1, 4.2)
+                            tts_audio = node_output.get("tts_audio")
+                            tts_format = node_output.get("tts_format")
+                            if tts_audio:
+                                audio_data = {
+                                    "audio": tts_audio,
+                                    "format": tts_format or "opus"
+                                }
+                                yield f"event: audio_chunk\ndata: {json.dumps(audio_data)}\n\n"
+
                     except Exception as node_error:
                         # Log node-specific error
                         logger.error(

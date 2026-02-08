@@ -84,11 +84,6 @@ The system SHALL play audio automatically after the chat response text is displa
 - **WHEN** chat response text is displayed and audio chunk is received
 - **THEN** the system plays audio immediately without waiting for user action
 
-#### Scenario: Audio arrives before text display completes
-
-- **WHEN** audio_chunk event arrives while text is still streaming
-- **THEN** the system queues audio playback until text display completes
-
 ### Requirement: No Audio UI Controls
 
 The system SHALL play audio automatically without displaying playback controls (pause, replay, progress bar).
@@ -101,7 +96,7 @@ The system SHALL play audio automatically without displaying playback controls (
 #### Scenario: User wants to replay audio
 
 - **WHEN** audio playback completes
-- **THEN** the system does NOT provide a replay button (out of scope for MVP)
+- **THEN** the system does NOT provide a replay button
 
 ### Requirement: Graph State Management
 

@@ -1,31 +1,31 @@
 ## 1. Backend Setup
 
-- [ ] 1.1 Add `openai` package to backend dependencies (uv add openai)
-- [ ] 1.2 Add `OPENAI_API_KEY` to backend/.env.example
-- [ ] 1.3 Update backend/.env with actual OpenAI API key
+- [x] 1.1 Add `openai` package to backend dependencies (uv add openai)
+- [x] 1.2 Add `OPENAI_API_KEY` to backend/.env.example
+- [x] 1.3 Update backend/.env with actual OpenAI API key
 
 ## 2. Backend TTS Node Implementation
 
-- [ ] 2.1 Create TTS node function in backend/graph.py
-- [ ] 2.2 Implement OpenAI TTS API call (model: tts-1, voice: nova, format: opus)
-- [ ] 2.3 Add base64 encoding for audio data
-- [ ] 2.4 Add error handling for TTS API failures (log error, continue without audio)
-- [ ] 2.5 Add error handling for empty/null chat responses (skip TTS)
-- [ ] 2.6 Ensure TTS node does NOT add audio bytes to graph state (avoid bloating checkpoints)
+- [x] 2.1 Create TTS node function in backend/graph.py
+- [x] 2.2 Implement OpenAI TTS API call (model: tts-1, voice: nova, format: opus)
+- [x] 2.3 Add base64 encoding for audio data
+- [x] 2.4 Add error handling for TTS API failures (log error, continue without audio)
+- [x] 2.5 Add error handling for empty/null chat responses (skip TTS)
+- [x] 2.6 Ensure TTS node does NOT add audio bytes to graph state (avoid bloating checkpoints)
 
 ## 3. Backend Graph Modification
 
-- [ ] 3.1 Modify graph edges to add tts_node in series after chat_node
-- [ ] 3.2 Update graph structure: dispatch → chat_node → tts_node → END
-- [ ] 3.3 Keep correction_node in parallel (dispatch → correction_node → END)
-- [ ] 3.4 Test graph execution order with LangGraph checkpointing
+- [x] 3.1 Modify graph edges to add tts_node in series after chat_node
+- [x] 3.2 Update graph structure: dispatch → chat_node → tts_node → END
+- [x] 3.3 Keep correction_node in parallel (dispatch → correction_node → END)
+- [x] 3.4 Test graph execution order with LangGraph checkpointing
 
 ## 4. Backend SSE Streaming
 
-- [ ] 4.1 Add 'audio_chunk' SSE event type to backend/endpoints/chat.py
-- [ ] 4.2 Stream audio_chunk event with base64 audio and format 'opus' after TTS completes
-- [ ] 4.3 Ensure audio_chunk events are sent per message (not shared across thread)
-- [ ] 4.4 Test SSE streaming with multiple messages in same thread
+- [x] 4.1 Add 'audio_chunk' SSE event type to backend/endpoints/chat.py
+- [x] 4.2 Stream audio_chunk event with base64 audio and format 'opus' after TTS completes
+- [x] 4.3 Ensure audio_chunk events are sent per message (not shared across thread)
+- [x] 4.4 Test SSE streaming with multiple messages in same thread
 
 ## 5. Frontend Speech Recognition Hook
 
