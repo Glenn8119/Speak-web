@@ -1,16 +1,16 @@
 ## 1. Dependencies and Setup
 
-- [ ] 1.1 Add FAISS and langchain dependencies to pyproject.toml
-- [ ] 1.2 Create backend/data/ directory for index files
-- [ ] 1.3 Verify IELTS.json word list exists in project root
+- [x] 1.1 Add FAISS and langchain dependencies to pyproject.toml
+- [x] 1.2 Create backend/data/ directory for index files
+- [x] 1.3 Verify IELTS.json word list exists in project root
 
 ## 2. FAISS Index Building
 
-- [ ] 2.1 Create backend/scripts/build_ielts_index.py script
-- [ ] 2.2 Implement Titan Embedding calls for word chunks
-- [ ] 2.3 Build FAISS index from embeddings
-- [ ] 2.4 Save ielts.faiss and ielts_metadata.json to backend/data/
-- [ ] 2.5 Run script to generate index files
+- [x] 2.1 Create backend/scripts/build_ielts_index.py script
+- [x] 2.2 Implement Titan Embedding calls for word chunks (amazon.titan-embed-text-v2:0)
+- [x] 2.3 Build FAISS index from embeddings
+- [x] 2.4 Save index.faiss and index.pkl to backend/data/ielts_index/ (LangChain default format)
+- [x] 2.5 Run script to generate index files
 
 ## 3. Core RAG Pipeline
 
