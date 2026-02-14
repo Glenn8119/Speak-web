@@ -19,6 +19,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from utils import strip_markdown_code_blocks
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 # Embedding model - must match the one used to build the index
 EMBEDDING_MODEL_ID = "amazon.titan-embed-text-v2:0"
@@ -246,7 +247,7 @@ Generate suggestions for substituting simpler words with IELTS vocabulary."""
         suggestions = json.loads(content)
 
         # Validate and convert to WordSuggestion format
-        valid_suggestions = []
+        valid_suggestions: list[WordSuggestion] = []
         for s in suggestions:
             if all(k in s for k in ["target_word", "ielts_word", "definition", "example", "improved_sentence"]):
                 valid_suggestions.append({
@@ -294,12 +295,15 @@ async def run_ielts_rag_pipeline(
         if not keywords["replaceable_words"] and not keywords["topic_keywords"]:
             return {"suggestions": []}
 
+        print('123')
+
         # Step 2: Search FAISS index for vocabulary matches
         vocabulary_matches = await search_ielts_vocabulary(keywords, faiss_index)
         logger.debug(f"Found {len(vocabulary_matches)} vocabulary matches")
 
         if not vocabulary_matches:
             return {"suggestions": []}
+        print('456')
 
         # Step 3: Generate suggestions using Claude Sonnet
         suggestions = await generate_suggestions(
@@ -308,6 +312,7 @@ async def run_ielts_rag_pipeline(
             vocabulary_matches,
         )
         logger.debug(f"Generated {len(suggestions)} suggestions")
+        print('789')
 
         return {"suggestions": suggestions}
 

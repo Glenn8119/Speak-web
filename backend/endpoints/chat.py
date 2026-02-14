@@ -304,7 +304,7 @@ async def get_summary(
 
         corrections = state.values.get("corrections", [])
 
-        # Handle empty corrections (Task 6.3: skip RAG pipeline)
+        # Handle empty corrections (skip RAG pipeline)
         if not corrections:
             return SummaryResponse(
                 corrections=[],
@@ -371,14 +371,16 @@ Identify patterns and provide personalized tips."""
 
             try:
                 # Extract corrected sentences from corrections
-                corrected_sentences = [c.get("corrected", "") for c in corrections if c.get("corrected")]
+                corrected_sentences = [c.get("corrected", "")
+                                       for c in corrections if c.get("corrected")]
                 if not corrected_sentences:
                     return {"suggestions": []}
 
                 return await run_ielts_rag_pipeline(corrected_sentences, ielts_index)
             except Exception as e:
                 # Task 6.4: Graceful degradation - return empty on failure
-                logger.warning(f"IELTS RAG pipeline failed, returning empty suggestions: {e}")
+                logger.warning(
+                    f"IELTS RAG pipeline failed, returning empty suggestions: {e}")
                 return {"suggestions": []}
 
         # Run both tasks in parallel
