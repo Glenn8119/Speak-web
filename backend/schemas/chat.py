@@ -23,11 +23,26 @@ class PatternInfo(BaseModel):
     suggestion: str
 
 
+class WordSuggestion(BaseModel):
+    """A single IELTS vocabulary suggestion"""
+    target_word: str  # The word being replaced
+    ielts_word: str  # The suggested IELTS word
+    definition: str  # Definition of the IELTS word
+    example: str  # Example sentence from IELTS word list
+    improved_sentence: str  # The corrected sentence with IELTS word substituted
+
+
+class IELTSSuggestion(BaseModel):
+    """Result of the IELTS RAG pipeline"""
+    suggestions: list[WordSuggestion]
+
+
 class SummaryResponse(BaseModel):
     """Response model for summary endpoint"""
     corrections: list[dict]
     tips: str
     common_patterns: list[PatternInfo]
+    ielts_suggestions: list[WordSuggestion] = []
 
 
 class CorrectionInfo(BaseModel):

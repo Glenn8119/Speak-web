@@ -2,28 +2,33 @@
 Chat and summary endpoints with SSE streaming.
 """
 
-from schemas.chat import (
-    ChatRequest,
-    SummaryRequest,
-    SummaryResponse,
-    PatternInfo,
-    HistoryResponse,
-    HistoryMessage,
-    CorrectionInfo,
-)
-from dependencies import get_graph
-from utils import strip_markdown_code_blocks
-from langgraph.graph.state import CompiledStateGraph
-from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_anthropic import ChatAnthropic
-from fastapi.responses import StreamingResponse
+import asyncio
 import json
 import logging
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import StreamingResponse
+from langchain_anthropic import ChatAnthropic
+from langchain_community.vectorstores import FAISS
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.runnables import RunnableConfig
+from langgraph.graph.state import CompiledStateGraph
+
+from dependencies import get_graph, get_ielts_index
+from ielts_rag import run_ielts_rag_pipeline
+from schemas.chat import (
+    ChatRequest,
+    CorrectionInfo,
+    HistoryMessage,
+    HistoryResponse,
+    PatternInfo,
+    SummaryRequest,
+    SummaryResponse,
+    WordSuggestion,
+)
+from utils import strip_markdown_code_blocks
 
 # Configure logger for chat endpoints
 logger = logging.getLogger(__name__)
@@ -260,13 +265,16 @@ async def get_history(
 @router.post("/summary", response_model=SummaryResponse)
 async def get_summary(
     request: SummaryRequest,
-    graph: Annotated[CompiledStateGraph, Depends(get_graph)]
+    graph: Annotated[CompiledStateGraph, Depends(get_graph)],
+    ielts_index: Annotated[FAISS | None, Depends(get_ielts_index)]
 ):
     """
-    Generate a two-part practice summary for a conversation thread.
+    Generate a practice summary for a conversation thread.
 
-    Part 1: List all grammar corrections from thread state (no AI call)
-    Part 2: AI-generated tips based on correction analysis
+    Parts:
+    1. List all grammar corrections from thread state (no AI call)
+    2. AI-generated tips based on correction analysis
+    3. IELTS vocabulary suggestions based on corrected sentences (in parallel with tips)
 
     # TODO: Future enhancement - Add Notion MCP sync to save summaries
     # to user's learning journal in Notion for long-term progress tracking.
@@ -275,7 +283,7 @@ async def get_summary(
         request: SummaryRequest with thread_id
 
     Returns:
-        SummaryResponse with corrections, tips, and common patterns
+        SummaryResponse with corrections, tips, common patterns, and ielts_suggestions
     """
     thread_id = request.thread_id
 
@@ -290,20 +298,22 @@ async def get_summary(
             return SummaryResponse(
                 corrections=[],
                 tips="Start a conversation to get grammar feedback and personalized tips!",
-                common_patterns=[]
+                common_patterns=[],
+                ielts_suggestions=[]
             )
 
         corrections = state.values.get("corrections", [])
 
-        # Handle empty corrections
+        # Handle empty corrections (Task 6.3: skip RAG pipeline)
         if not corrections:
             return SummaryResponse(
                 corrections=[],
                 tips="Excellent! You haven't made any grammar errors in this conversation. Keep up the great work! 🎉",
-                common_patterns=[]
+                common_patterns=[],
+                ielts_suggestions=[]
             )
 
-        # Part 2: AI-powered tips generation
+        # Part 2 & 3: Run tips generation and IELTS RAG pipeline in parallel
         llm = ChatAnthropic(
             model="claude-sonnet-4-5-20250929",  # type: ignore
             temperature=0.5,
@@ -347,12 +357,40 @@ Identify patterns and provide personalized tips."""
             HumanMessage(content=analysis_request)
         ]
 
-        response = llm.invoke(messages)
+        # Task 6.2: Run tips and IELTS RAG in parallel
+        async def generate_tips():
+            """Generate tips using Claude Sonnet."""
+            response = await llm.ainvoke(messages)
+            return response
 
-        # Parse AI response
+        async def generate_ielts_suggestions():
+            """Run IELTS RAG pipeline (Task 6.4: graceful degradation)."""
+            if ielts_index is None:
+                logger.debug("IELTS index not available, skipping suggestions")
+                return {"suggestions": []}
+
+            try:
+                # Extract corrected sentences from corrections
+                corrected_sentences = [c.get("corrected", "") for c in corrections if c.get("corrected")]
+                if not corrected_sentences:
+                    return {"suggestions": []}
+
+                return await run_ielts_rag_pipeline(corrected_sentences, ielts_index)
+            except Exception as e:
+                # Task 6.4: Graceful degradation - return empty on failure
+                logger.warning(f"IELTS RAG pipeline failed, returning empty suggestions: {e}")
+                return {"suggestions": []}
+
+        # Run both tasks in parallel
+        tips_response, ielts_result = await asyncio.gather(
+            generate_tips(),
+            generate_ielts_suggestions()
+        )
+
+        # Parse tips AI response
         try:
-            content = response.content if isinstance(
-                response.content, str) else str(response.content)
+            content = tips_response.content if isinstance(
+                tips_response.content, str) else str(tips_response.content)
 
             # Strip markdown code blocks if present (Claude sometimes wraps JSON)
             content = strip_markdown_code_blocks(content)
@@ -377,10 +415,23 @@ Identify patterns and provide personalized tips."""
             tips = "Keep practicing! You're making great progress in your English conversation skills."
             common_patterns = []
 
+        # Convert IELTS suggestions to Pydantic models
+        ielts_suggestions = [
+            WordSuggestion(
+                target_word=s.get("target_word", ""),
+                ielts_word=s.get("ielts_word", ""),
+                definition=s.get("definition", ""),
+                example=s.get("example", ""),
+                improved_sentence=s.get("improved_sentence", "")
+            )
+            for s in ielts_result.get("suggestions", [])
+        ]
+
         return SummaryResponse(
             corrections=corrections,
             tips=tips,
-            common_patterns=common_patterns
+            common_patterns=common_patterns,
+            ielts_suggestions=ielts_suggestions
         )
 
     except Exception as e:
@@ -388,5 +439,6 @@ Identify patterns and provide personalized tips."""
         return SummaryResponse(
             corrections=[],
             tips=f"Unable to generate summary: {str(e)}",
-            common_patterns=[]
+            common_patterns=[],
+            ielts_suggestions=[]
         )
