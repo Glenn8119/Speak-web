@@ -120,6 +120,22 @@ export interface PatternInfo {
 }
 
 /**
+ * IELTS vocabulary suggestion from the RAG pipeline
+ */
+export interface WordSuggestion {
+  /** The word being replaced */
+  target_word: string
+  /** The suggested IELTS word */
+  ielts_word: string
+  /** Definition of the IELTS word */
+  definition: string
+  /** Example sentence from IELTS word list */
+  example: string
+  /** The corrected sentence with IELTS word substituted */
+  improved_sentence: string
+}
+
+/**
  * Summary data structure returned from /summary endpoint
  */
 export interface Summary {
@@ -129,6 +145,8 @@ export interface Summary {
   tips: string
   /** Common error patterns with frequency and suggestions */
   common_patterns: PatternInfo[]
+  /** IELTS vocabulary suggestions from RAG pipeline */
+  ielts_suggestions: WordSuggestion[]
 }
 
 /**

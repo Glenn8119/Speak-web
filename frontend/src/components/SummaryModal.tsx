@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Summary } from '../types'
+import IELTSSuggestions from './IELTSSuggestions'
 
 interface SummaryModalProps {
   summary: Summary
@@ -106,7 +107,10 @@ export default function SummaryModal({
             </section>
           )}
 
-          {/* Part 2: AI-generated tips */}
+          {/* Part 3: IELTS vocabulary suggestions */}
+          <IELTSSuggestions suggestions={summary.ielts_suggestions} />
+
+          {/* Part 4: AI-generated tips */}
           {summary.tips && (
             <section>
               <h3 className='text-sm font-medium text-gray-400 uppercase tracking-wide mb-2'>
