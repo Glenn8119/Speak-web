@@ -28,12 +28,14 @@ class GraphState(TypedDict):
         thread_id: Persistent conversation identifier for checkpointing.
         tts_audio: Base64-encoded audio from TTS (transient, not persisted).
         tts_format: Audio format (e.g., 'opus'). Transient, not persisted.
+        guardrail_passed: Whether the user message passed the guardrail check.
     """
     messages: Annotated[Sequence[BaseMessage], add_messages]
     corrections: list[Correction]
     thread_id: str
     tts_audio: str | None
     tts_format: str | None
+    guardrail_passed: bool | None
 
 
 # Node implementations
@@ -63,7 +65,7 @@ def chat_node(state: GraphState) -> dict:
     # Optimized system prompt for natural conversation (~40% fewer tokens)
     system_prompt = """You're a friendly conversation partner helping someone practice English.
 
-Keep it casual and natural - chat like friends over coffee. Respond in 2-3 sentences. Show genuine interest with reactions like "Really?" or "That's cool!"
+Keep it casual and natural - chat like friends over coffee. Respond in 1-2 sentences, max 30 words. Show genuine interest with reactions like "Really?" or "That's cool!"
 
 Key behaviors:
 - Ask open follow-up questions (why/how, not yes/no)
@@ -287,36 +289,141 @@ def tts_node(state: GraphState) -> dict:
         return {"tts_audio": None, "tts_format": None}
 
 
-def dispatch_node(state: GraphState) -> dict:
+def guardrail_node(state: GraphState) -> dict:
     """
-    Entry point for parallel execution of chat and correction nodes.
+    Classify user intent and filter task requests.
 
-    This is a simple pass-through node that doesn't modify state.
-    It serves as the starting point for the graph to fan out to
-    both chat_node and correction_node in parallel.
+    Uses Claude Haiku to classify whether the user message is conversational
+    (allowed) or a task request (rejected). Task requests receive a friendly
+    rejection message that redirects to conversation practice.
 
     Args:
-        state: Current graph state
+        state: Current graph state with conversation history
 
     Returns:
-        State with messages passed through
+        Dictionary with guardrail_passed bool and optional rejection AIMessage
     """
-    # Return messages unchanged - state passes through to parallel nodes
-    return {"messages": state["messages"]}
+    from langchain_anthropic import ChatAnthropic
+    from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+    import json
+
+    # Get the last user message
+    user_messages = [msg for msg in state["messages"]
+                     if hasattr(msg, 'type') and msg.type == "human"]
+    if not user_messages:
+        return {"guardrail_passed": True}
+
+    last_user_message = user_messages[-1]
+    message_content = last_user_message.content
+
+    # Initialize Claude Haiku for fast classification
+    llm = ChatAnthropic(
+        model="claude-haiku-4-5-20251001",  # type: ignore
+        temperature=0.3,  # Consistent classification
+    )
+
+    system_prompt = """You classify user messages for an English conversation practice app.
+
+ALLOW (passed: true):
+- Conversational messages about any topic
+- Sharing experiences, opinions, feelings
+- Asking for opinions or advice conversationally
+- Discussing topics (tech, coding, travel, etc.) in conversation
+- Greetings and small talk
+
+REJECT (passed: false):
+- Explicit task requests: "Write code for...", "Translate this...", "Solve this math..."
+- Requests to generate, create, or produce content
+- Homework or assignment help
+- Translation requests
+
+Key distinction: Talking ABOUT something (allowed) vs asking to DO something (rejected).
+
+Examples:
+- "I'm learning Python and it's really fun" → passed: true (sharing experience)
+- "Write me a Python function to sort a list" → passed: false (task request)
+- "What do you think about AI?" → passed: true (asking opinion)
+- "Translate this paragraph to Chinese" → passed: false (task request)
+
+Output JSON only:
+{
+  "passed": true/false,
+  "response": null if passed, or friendly rejection message if not passed
+}
+
+For rejections, be warm and redirect to conversation (max 30 words):
+- Acknowledge their interest
+- Explain this is for conversation practice
+- Suggest discussing the topic instead"""
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=f"Classify this message:\n\n\"{message_content}\"")
+    ]
+
+    response = llm.invoke(messages)
+
+    # Parse JSON response
+    try:
+        from utils import strip_markdown_code_blocks
+
+        content = response.content if isinstance(
+            response.content, str) else str(response.content)
+        content = strip_markdown_code_blocks(content)
+
+        result = json.loads(content)
+        passed = result.get("passed", True)
+
+        if passed:
+            return {"guardrail_passed": True}
+        else:
+            # Return rejection message as AIMessage
+            rejection_message = result.get("response",
+                "I'm here to help you practice English conversation! "
+                "Let's chat about topics you're interested in instead.")
+            return {
+                "guardrail_passed": False,
+                "messages": [AIMessage(content=rejection_message)]
+            }
+
+    except json.JSONDecodeError:
+        # On parse failure, allow the message through
+        return {"guardrail_passed": True}
 
 
 # Graph construction
 
+def route_after_guardrail(state: GraphState) -> list[str]:
+    """
+    Route after guardrail based on whether the message passed.
+
+    If guardrail passed: fan out to chat and correction nodes in parallel.
+    If guardrail rejected: route to TTS to generate audio for rejection message.
+
+    Args:
+        state: Current graph state with guardrail_passed flag
+
+    Returns:
+        List of node names to route to
+    """
+    if state.get("guardrail_passed", True):
+        return ["chat", "correction"]
+    else:
+        return ["tts"]
+
+
 def create_workflow():
     """
-    Create the LangGraph workflow with parallel chat/TTS and correction nodes.
+    Create the LangGraph workflow with guardrail, chat/TTS and correction nodes.
 
     Graph structure:
-        START -> dispatch -> chat -> tts -> END
-                         \-> correction -----> END
+        START -> guardrail -> [pass] -> chat -> tts -> END
+                           \         \-> correction -> END
+                            -> [reject] -> tts -> END
 
-    The chat node executes first, then TTS generates audio in series.
-    The correction node runs in parallel with chat/tts chain.
+    The guardrail node classifies intent first.
+    On pass: chat and correction run in parallel, then TTS for chat response.
+    On reject: TTS generates audio for the rejection message.
 
     Returns:
         Compiled StateGraph ready for execution
@@ -327,17 +434,20 @@ def create_workflow():
     workflow = StateGraph(GraphState)
 
     # Add nodes
-    workflow.add_node("dispatch", dispatch_node)
+    workflow.add_node("guardrail", guardrail_node)
     workflow.add_node("chat", chat_node)
     workflow.add_node("tts", tts_node)
     workflow.add_node("correction", correction_node)
 
-    # Set entry point
-    workflow.set_entry_point("dispatch")
+    # Set entry point to guardrail
+    workflow.set_entry_point("guardrail")
 
-    # Add parallel edges from dispatch to chat and correction
-    workflow.add_edge("dispatch", "chat")
-    workflow.add_edge("dispatch", "correction")
+    # Add conditional edges from guardrail
+    workflow.add_conditional_edges(
+        "guardrail",
+        route_after_guardrail,
+        ["chat", "correction", "tts"]
+    )
 
     # Chat -> TTS -> END (series)
     workflow.add_edge("chat", "tts")

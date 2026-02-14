@@ -82,7 +82,24 @@ async def chat(
                 # Each update is a dict with node name as key
                 for node_name, node_output in update.items():
                     try:
-                        if node_name == "chat":
+                        if node_name == "guardrail":
+                            # Check if guardrail rejected the message
+                            guardrail_passed = node_output.get(
+                                "guardrail_passed", True)
+                            if not guardrail_passed:
+                                # Extract rejection message and emit as chat_response
+                                messages = node_output.get("messages", [])
+                                if messages:
+                                    rejection_message = messages[0]
+                                    chat_data = {
+                                        "content": rejection_message.content,
+                                        "role": "assistant",
+                                        "rejected": True  # Flag to indicate this was a guardrail rejection
+                                    }
+                                    yield f"event: chat_response\ndata: {json.dumps(chat_data)}\n\n"
+                                    chat_succeeded = True
+
+                        elif node_name == "chat":
                             # Extract the AI message
                             messages = node_output.get("messages", [])
                             if messages:
