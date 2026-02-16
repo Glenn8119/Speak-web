@@ -74,13 +74,14 @@ async def chat(
             if not request.thread_id:
                 yield f"event: thread_id\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
 
-            # Stream graph updates
+            # Stream graph updates (use astream for true async streaming)
             chat_succeeded = False
             correction_succeeded = False
 
-            for update in graph.stream(input_state, config, stream_mode="updates"):
+            async for update in graph.astream(input_state, config, stream_mode="updates"):
                 # Each update is a dict with node name as key
                 for node_name, node_output in update.items():
+                    logger.info(f'Processing node: {node_name}')
                     try:
                         if node_name == "guardrail":
                             # Check if guardrail rejected the message
@@ -99,7 +100,8 @@ async def chat(
                                     yield f"event: chat_response\ndata: {json.dumps(chat_data)}\n\n"
                                     chat_succeeded = True
 
-                        elif node_name == "chat":
+                        elif node_name == "chat_tts":
+                            # Combined chat + TTS node output
                             # Extract the AI message
                             messages = node_output.get("messages", [])
                             if messages:
@@ -110,6 +112,16 @@ async def chat(
                                 }
                                 yield f"event: chat_response\ndata: {json.dumps(chat_data)}\n\n"
                                 chat_succeeded = True
+
+                            # Extract and stream audio data
+                            tts_audio = node_output.get("tts_audio")
+                            tts_format = node_output.get("tts_format")
+                            if tts_audio:
+                                audio_data = {
+                                    "audio": tts_audio,
+                                    "format": tts_format or "opus"
+                                }
+                                yield f"event: audio_chunk\ndata: {json.dumps(audio_data)}\n\n"
 
                         elif node_name == "correction":
                             # Extract the correction data

@@ -19,6 +19,6 @@
 
 ## 4. Testing
 
-- [ ] 4.1 Test conversational messages pass through to chat/correction
-- [ ] 4.2 Test task requests are rejected with friendly message
-- [ ] 4.3 Test rejection messages have TTS audio generated
+- [x] 4.1 Test conversational messages pass through to chat/correction
+- [x] 4.2 Test task requests are rejected with friendly message
+- [x] 4.3 Test rejection messages have TTS audio generated

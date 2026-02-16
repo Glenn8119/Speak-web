@@ -3,7 +3,10 @@ LangGraph workflow for Speak Chat App.
 Defines the graph state and nodes for parallel chat and grammar correction.
 """
 
+import logging
 from typing import TypedDict, Annotated, Sequence
+
+logger = logging.getLogger(__name__)
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 
@@ -53,12 +56,13 @@ def chat_node(state: GraphState) -> dict:
     Returns:
         Dictionary with updated messages containing AI response
     """
+    logger.info(">>> chat_node started")
     from langchain_anthropic import ChatAnthropic
     from langchain_core.messages import SystemMessage
 
     # Initialize the LLM
     llm = ChatAnthropic(
-        model="claude-sonnet-4-5-20250929",  # type: ignore
+        model="claude-haiku-4-5-20251001",  # type: ignore
         temperature=0.7,  # Slightly creative for natural conversation
     )
 
@@ -81,6 +85,7 @@ Goal: Make speaking English feel fun, not like a test."""
     # Generate response
     response = llm.invoke(messages)
 
+    logger.info("<<< chat_node finished")
     return {"messages": [response]}
 
 
@@ -97,6 +102,7 @@ def correction_node(state: GraphState) -> dict:
     Returns:
         Dictionary with updated corrections list
     """
+    logger.info(">>> correction_node started")
     from langchain_anthropic import ChatAnthropic
     from langchain_core.messages import SystemMessage, HumanMessage
     import json
@@ -105,6 +111,7 @@ def correction_node(state: GraphState) -> dict:
     user_messages = [msg for msg in state["messages"]
                      if hasattr(msg, 'type') and msg.type == "human"]
     if not user_messages:
+        logger.info("<<< correction_node finished (no user messages)")
         return {"corrections": []}
 
     last_user_message = user_messages[-1]
@@ -197,6 +204,7 @@ Be encouraging! Focus on helping them speak more naturally and confidently."""
 
         # Append to corrections list
         new_corrections = state.get("corrections", []) + [correction]
+        logger.info("<<< correction_node finished")
         return {"corrections": new_corrections}
 
     except json.JSONDecodeError:
@@ -209,6 +217,7 @@ Be encouraging! Focus on helping them speak more naturally and confidently."""
             "message_id": message_id
         }
         new_corrections = state.get("corrections", []) + [fallback_correction]
+        logger.info("<<< correction_node finished (fallback)")
         return {"corrections": new_corrections}
 
 
@@ -228,11 +237,9 @@ def tts_node(state: GraphState) -> dict:
     Returns:
         Dictionary with tts_audio (base64) and tts_format, or empty dict on error
     """
+    logger.info(">>> tts_node started")
     import base64
-    import logging
     from openai import OpenAI
-
-    logger = logging.getLogger(__name__)
 
     # Get the last AI message from conversation history
     ai_messages = [msg for msg in state["messages"]
@@ -240,6 +247,7 @@ def tts_node(state: GraphState) -> dict:
 
     if not ai_messages:
         # No AI message to convert - skip TTS
+        logger.info("<<< tts_node finished (no AI messages)")
         return {"tts_audio": None, "tts_format": None}
 
     last_ai_message = ai_messages[-1]
@@ -247,7 +255,7 @@ def tts_node(state: GraphState) -> dict:
 
     # Handle empty or null chat responses (task 2.5)
     if not text_content or not text_content.strip():
-        logger.info("TTS skipped: empty or null chat response")
+        logger.info("<<< tts_node finished (empty response)")
         return {"tts_audio": None, "tts_format": None}
 
     try:
@@ -269,6 +277,7 @@ def tts_node(state: GraphState) -> dict:
 
         # Return audio data for SSE streaming (task 2.6)
         # Note: This is NOT added to GraphState - only accessible during streaming
+        logger.info("<<< tts_node finished")
         return {
             "tts_audio": audio_base64,
             "tts_format": "opus"
@@ -286,7 +295,39 @@ def tts_node(state: GraphState) -> dict:
             },
             exc_info=True
         )
+        logger.info("<<< tts_node finished (error)")
         return {"tts_audio": None, "tts_format": None}
+
+
+def chat_and_tts_node(state: GraphState) -> dict:
+    """
+    Combined chat + TTS node to avoid superstep blocking.
+
+    LangGraph executes nodes in "supersteps" - all nodes in a superstep must
+    complete before the next superstep begins. By combining chat and TTS into
+    a single node, TTS can start immediately after chat completes without
+    waiting for the parallel correction node.
+
+    Args:
+        state: Current graph state with conversation history
+
+    Returns:
+        Dictionary with both chat messages and TTS audio data
+    """
+    logger.info(">>> chat_and_tts_node started")
+
+    # Step 1: Execute chat
+    chat_result = chat_node(state)
+
+    # Step 2: Execute TTS with updated state (includes new AI message)
+    updated_state = {**state, **chat_result}
+    tts_result = tts_node(updated_state)
+
+    # Combine results
+    combined_result = {**chat_result, **tts_result}
+
+    logger.info("<<< chat_and_tts_node finished")
+    return combined_result
 
 
 def guardrail_node(state: GraphState) -> dict:
@@ -303,6 +344,7 @@ def guardrail_node(state: GraphState) -> dict:
     Returns:
         Dictionary with guardrail_passed bool and optional rejection AIMessage
     """
+    logger.info(">>> guardrail_node started")
     from langchain_anthropic import ChatAnthropic
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
     import json
@@ -311,6 +353,7 @@ def guardrail_node(state: GraphState) -> dict:
     user_messages = [msg for msg in state["messages"]
                      if hasattr(msg, 'type') and msg.type == "human"]
     if not user_messages:
+        logger.info("<<< guardrail_node finished (no user messages)")
         return {"guardrail_passed": True}
 
     last_user_message = user_messages[-1]
@@ -358,7 +401,8 @@ For rejections, be warm and redirect to conversation (max 30 words):
 
     messages = [
         SystemMessage(content=system_prompt),
-        HumanMessage(content=f"Classify this message:\n\n\"{message_content}\"")
+        HumanMessage(
+            content=f"Classify this message:\n\n\"{message_content}\"")
     ]
 
     response = llm.invoke(messages)
@@ -375,12 +419,14 @@ For rejections, be warm and redirect to conversation (max 30 words):
         passed = result.get("passed", True)
 
         if passed:
+            logger.info("<<< guardrail_node finished (passed)")
             return {"guardrail_passed": True}
         else:
             # Return rejection message as AIMessage
             rejection_message = result.get("response",
-                "I'm here to help you practice English conversation! "
-                "Let's chat about topics you're interested in instead.")
+                                           "I'm here to help you practice English conversation! "
+                                           "Let's chat about topics you're interested in instead.")
+            logger.info("<<< guardrail_node finished (rejected)")
             return {
                 "guardrail_passed": False,
                 "messages": [AIMessage(content=rejection_message)]
@@ -388,6 +434,7 @@ For rejections, be warm and redirect to conversation (max 30 words):
 
     except json.JSONDecodeError:
         # On parse failure, allow the message through
+        logger.info("<<< guardrail_node finished (parse error, passed)")
         return {"guardrail_passed": True}
 
 
@@ -397,7 +444,7 @@ def route_after_guardrail(state: GraphState) -> list[str]:
     """
     Route after guardrail based on whether the message passed.
 
-    If guardrail passed: fan out to chat and correction nodes in parallel.
+    If guardrail passed: fan out to chat_tts and correction nodes in parallel.
     If guardrail rejected: route to TTS to generate audio for rejection message.
 
     Args:
@@ -407,22 +454,24 @@ def route_after_guardrail(state: GraphState) -> list[str]:
         List of node names to route to
     """
     if state.get("guardrail_passed", True):
-        return ["chat", "correction"]
+        return ["chat_tts", "correction"]
     else:
         return ["tts"]
 
 
 def create_workflow():
     """
-    Create the LangGraph workflow with guardrail, chat/TTS and correction nodes.
+    Create the LangGraph workflow with guardrail, chat_tts and correction nodes.
 
     Graph structure:
-        START -> guardrail -> [pass] -> chat -> tts -> END
+        START -> guardrail -> [pass] -> chat_tts -> END
                            \         \-> correction -> END
                             -> [reject] -> tts -> END
 
     The guardrail node classifies intent first.
-    On pass: chat and correction run in parallel, then TTS for chat response.
+    On pass: chat_tts and correction run in parallel. chat_tts combines chat
+             and TTS into a single node so TTS starts immediately after chat
+             without waiting for correction to complete.
     On reject: TTS generates audio for the rejection message.
 
     Returns:
@@ -435,8 +484,8 @@ def create_workflow():
 
     # Add nodes
     workflow.add_node("guardrail", guardrail_node)
-    workflow.add_node("chat", chat_node)
-    workflow.add_node("tts", tts_node)
+    workflow.add_node("chat_tts", chat_and_tts_node)  # Combined chat + TTS
+    workflow.add_node("tts", tts_node)  # Standalone TTS for guardrail rejections
     workflow.add_node("correction", correction_node)
 
     # Set entry point to guardrail
@@ -446,14 +495,16 @@ def create_workflow():
     workflow.add_conditional_edges(
         "guardrail",
         route_after_guardrail,
-        ["chat", "correction", "tts"]
+        ["chat_tts", "correction", "tts"]
     )
 
-    # Chat -> TTS -> END (series)
-    workflow.add_edge("chat", "tts")
+    # chat_tts -> END (combined node, no longer needs separate tts edge)
+    workflow.add_edge("chat_tts", END)
+
+    # Standalone tts -> END (for guardrail rejections)
     workflow.add_edge("tts", END)
 
-    # Correction -> END (parallel with chat/tts chain)
+    # Correction -> END (parallel with chat_tts)
     workflow.add_edge("correction", END)
 
     return workflow
