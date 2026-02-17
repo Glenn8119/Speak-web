@@ -1,28 +1,28 @@
 ## 1. Backend Environment Setup
 
-- [ ] 1.1 Add `OPENAI_API_KEY` to `backend/.env`
-- [ ] 1.2 Add `openai` package to backend dependencies (if not already present)
-- [ ] 1.3 Verify OpenAI API key is valid by testing Whisper API access
+- [x] 1.1 Add `OPENAI_API_KEY` to `backend/.env`
+- [x] 1.2 Add `openai` package to backend dependencies (if not already present)
+- [x] 1.3 Verify OpenAI API key is valid by testing Whisper API access
 
 ## 2. Backend Endpoint Modification
 
-- [ ] 2.1 Modify `/chat` endpoint signature in `backend/endpoints/chat.py` to accept `UploadFile` for audio parameter
-- [ ] 2.2 Change `thread_id` parameter to use `Form()` instead of request body
-- [ ] 2.3 Add audio file reading logic (`audio_bytes = await audio.read()`)
-- [ ] 2.4 Add OpenAI client initialization for Whisper API
-- [ ] 2.5 Implement Whisper API transcription call with error handling
-- [ ] 2.6 Modify `event_generator()` to emit `transcription` SSE event immediately after Whisper returns
-- [ ] 2.7 Ensure transcription event is emitted before `thread_id` event
-- [ ] 2.8 Update Graph input creation to use transcribed text as HumanMessage content
-- [ ] 2.9 Add error event emission for Whisper API failures
+- [x] 2.1 Modify `/chat` endpoint signature in `backend/endpoints/chat.py` to accept `UploadFile` for audio parameter
+- [x] 2.2 Change `thread_id` parameter to use `Form()` instead of request body
+- [x] 2.3 Add audio file reading logic (`audio_bytes = await audio.read()`)
+- [x] 2.4 Add OpenAI client initialization for Whisper API
+- [x] 2.5 Implement Whisper API transcription call with error handling
+- [x] 2.6 Modify `event_generator()` to emit `transcription` SSE event immediately after Whisper returns
+- [x] 2.7 Ensure transcription event is emitted before `thread_id` event
+- [x] 2.8 Update Graph input creation to use transcribed text as HumanMessage content
+- [x] 2.9 Add error event emission for Whisper API failures
 
 ## 3. Backend Testing
 
-- [ ] 3.1 Test `/chat` endpoint with Postman/curl using sample audio file (WebM format)
-- [ ] 3.2 Verify `transcription` SSE event is emitted correctly with JSON payload
-- [ ] 3.3 Verify Graph executes normally with transcribed text
-- [ ] 3.4 Test error handling when Whisper API fails
-- [ ] 3.5 Test with different audio formats (WebM, MP4, WAV)
+- [x] 3.1 Test `/chat` endpoint with Postman/curl using sample audio file (WebM format)
+- [x] 3.2 Verify `transcription` SSE event is emitted correctly with JSON payload
+- [x] 3.3 Verify Graph executes normally with transcribed text
+- [x] 3.4 Test error handling when Whisper API fails
+- [x] 3.5 Test with different audio formats (WebM, MP4, WAV)
 
 ## 4. Frontend Audio Recorder Hook
 

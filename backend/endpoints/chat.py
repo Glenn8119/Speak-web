@@ -8,13 +8,14 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from fastapi.responses import StreamingResponse
 from langchain_anthropic import ChatAnthropic
 from langchain_community.vectorstores import FAISS
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph.state import CompiledStateGraph
+from openai import OpenAI
 
 from dependencies import get_graph, get_ielts_index
 from ielts_rag import run_ielts_rag_pipeline
@@ -39,26 +40,32 @@ router = APIRouter(tags=["chat"])
 
 @router.post("/chat")
 async def chat(
-    request: ChatRequest,
-    graph: Annotated[CompiledStateGraph, Depends(get_graph)]
+    audio: Annotated[UploadFile, File()],
+    thread_id: Annotated[str | None, Form()] = None,
+    graph: Annotated[CompiledStateGraph, Depends(get_graph)] = None
 ):
     """
     Stream AI conversation and grammar corrections via Server-Sent Events.
 
-    Accepts a user message and optional thread_id for conversation persistence.
+    Accepts audio file upload and optional thread_id for conversation persistence.
     Returns SSE stream with:
+    - transcription event (transcribed text from audio)
     - thread_id event (for new conversations)
     - chat_response event (AI conversation response)
     - correction event (grammar correction data)
     - error event (if node fails)
     """
     # Generate thread_id for new conversations
-    thread_id = request.thread_id or str(uuid.uuid4())
+    thread_id = thread_id or str(uuid.uuid4())
 
-    # Continuing conversation - only send new message
-    input_state = {
-        "messages": [HumanMessage(content=request.message)],
-    }
+    # Read audio file bytes
+    audio_bytes = await audio.read()
+
+    # Initialize OpenAI client for Whisper API
+    openai_client = OpenAI()
+
+    # Variable to hold transcribed text
+    transcribed_text = ""
 
     # Configuration for thread persistence
     config = {
@@ -69,10 +76,60 @@ async def chat(
 
     async def event_generator():
         """Generate SSE events from graph stream"""
+        nonlocal transcribed_text
         try:
-            # Send thread_id first (for new conversations)
-            if not request.thread_id:
-                yield f"event: thread_id\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
+            # Step 1: Transcribe audio using Whisper API
+            try:
+                # Create a file-like object from audio bytes
+                import io
+                audio_file = io.BytesIO(audio_bytes)
+                audio_file.name = "audio.webm"  # Whisper needs a filename
+
+                # Call Whisper API
+                transcript = openai_client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=audio_file,
+                    language="en"
+                )
+
+                transcribed_text = transcript.text
+
+                # Emit transcription event immediately (before thread_id)
+                import time
+                transcription_data = {
+                    "text": transcribed_text,
+                    "timestamp": int(time.time())
+                }
+                yield f"event: transcription\ndata: {json.dumps(transcription_data)}\n\n"
+
+            except Exception as whisper_error:
+                # Log Whisper API error
+                logger.error(
+                    "Whisper API transcription failed",
+                    extra={
+                        "thread_id": thread_id,
+                        "error_type": type(whisper_error).__name__,
+                        "error_message": str(whisper_error),
+                    },
+                    exc_info=True
+                )
+
+                # Send error event for Whisper failure
+                error_data = {
+                    "node": "whisper",
+                    "message": f"Speech recognition failed: {str(whisper_error)}",
+                    "code": "STT_FAILED"
+                }
+                yield f"event: error\ndata: {json.dumps(error_data)}\n\n"
+                return  # Stop processing if transcription fails
+
+            # Step 2: Send thread_id (for new conversations)
+            yield f"event: thread_id\ndata: {json.dumps({'thread_id': thread_id})}\n\n"
+
+            # Step 3: Create Graph input using transcribed text
+            input_state = {
+                "messages": [HumanMessage(content=transcribed_text)],
+            }
 
             # Stream graph updates (use astream for true async streaming)
             chat_succeeded = False
@@ -180,7 +237,7 @@ async def chat(
                     "error_type": type(e).__name__,
                     "error_message": str(e),
                     # Truncate for logging
-                    "user_message": request.message[:100],
+                    "user_message": transcribed_text[:100] if transcribed_text else "(no transcription)",
                 },
                 exc_info=True
             )
