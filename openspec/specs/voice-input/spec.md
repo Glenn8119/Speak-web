@@ -1,74 +1,118 @@
-## ADDED Requirements
+# Voice Input
 
-### Requirement: Speech Recognition Initialization
+## Purpose
 
-The system SHALL initialize Web Speech API speech recognition when the chat input component mounts.
+This capability enables users to provide voice input for chat messages using browser-based audio recording. The system captures audio using MediaRecorder API, uploads it to the backend for transcription, and displays the transcribed text in the chat interface.
 
-#### Scenario: Successful initialization in supported browser
-
-- **WHEN** the chat input component mounts in Chrome, Firefox, or Edge
-- **THEN** the system creates a SpeechRecognition instance with language set to 'en-US'
-
-#### Scenario: Initialization in unsupported browser
-
-- **WHEN** the chat input component mounts in a browser without Web Speech API support
-- **THEN** the system displays an error message and disables the microphone button
+## Requirements
 
 ### Requirement: Start Voice Recording
 
-The system SHALL allow users to start voice recording by clicking a microphone button.
+The system SHALL allow users to start voice recording by clicking a microphone button in toggle mode.
 
 #### Scenario: User starts recording
 
-- **WHEN** user clicks the microphone button
-- **THEN** the system starts speech recognition and updates UI to show recording state
+- **WHEN** user clicks the microphone button while not recording
+- **THEN** the system starts audio recording using MediaRecorder API and updates the microphone icon to indicate recording state
 
-#### Scenario: Recording already in progress
+#### Scenario: User stops recording
 
-- **WHEN** user clicks the microphone button while already recording
-- **THEN** the system stops the current recording
+- **WHEN** user clicks the microphone button while recording
+- **THEN** the system stops recording, uploads the audio file to backend, and displays "🎤 轉錄中..."
 
 ### Requirement: Real-time Transcript Display
 
-The system SHALL display interim speech recognition results in real-time as the user speaks.
+The system SHALL display the transcribed text received from the backend immediately upon transcription completion.
 
-#### Scenario: Interim results received
+#### Scenario: Transcription received from backend
 
-- **WHEN** speech recognition produces interim results
-- **THEN** the system updates the chat input field with the interim transcript
+- **WHEN** backend returns transcription via SSE `transcription` event
+- **THEN** the system updates the user message with the transcribed text and removes the "轉錄中..." placeholder
 
-#### Scenario: Final results received
+#### Scenario: Transcription displays punctuation
 
-- **WHEN** speech recognition produces final results
-- **THEN** the system updates the chat input field with the final transcript and stops recording
-
-### Requirement: Voice Input Submission
-
-The system SHALL automatically submit the transcribed text as a chat message when speech recognition completes.
-
-#### Scenario: Speech recognition completes successfully
-
-- **WHEN** speech recognition produces a final transcript
-- **THEN** the system sends the transcript as a chat message via the existing SSE endpoint
-
-#### Scenario: Empty transcript
-
-- **WHEN** speech recognition completes with an empty transcript
-- **THEN** the system does NOT send a message and clears the recording state
+- **WHEN** backend returns transcription with punctuation and capitalization
+- **THEN** the system displays the text exactly as received, preserving all punctuation and capitalization
 
 ### Requirement: Speech Recognition Error Handling
 
-The system SHALL handle speech recognition errors gracefully without blocking the text input fallback.
+The system SHALL handle audio recording and transcription errors gracefully without blocking the text input fallback.
 
-#### Scenario: Recognition error occurs
+#### Scenario: Microphone permission denied
 
-- **WHEN** speech recognition encounters an error (network, no-speech, aborted)
-- **THEN** the system logs the error, displays a user-friendly message, and stops recording
+- **WHEN** user denies microphone permission
+- **THEN** the system displays an error message and keeps the microphone button visible for retry
 
-#### Scenario: Recognition timeout
+#### Scenario: Backend transcription error
 
-- **WHEN** no speech is detected within the timeout period
-- **THEN** the system stops recording and clears the input field
+- **WHEN** backend returns an error during transcription
+- **THEN** the system displays a user-friendly error message and allows user to retry recording
+
+#### Scenario: Network error during upload
+
+- **WHEN** audio upload fails due to network error
+- **THEN** the system displays an error message and allows user to retry recording
+
+### Requirement: Audio Recording with Toggle Mode
+
+The system SHALL record audio using MediaRecorder API with click-to-toggle interaction.
+
+#### Scenario: First click starts recording
+
+- **WHEN** user clicks the microphone button for the first time
+- **THEN** the system requests microphone permission (if not granted), starts MediaRecorder, and changes the microphone icon to indicate recording state
+
+#### Scenario: Second click stops and submits
+
+- **WHEN** user clicks the button again while recording
+- **THEN** the system stops MediaRecorder, creates audio blob, and uploads to backend `/chat` endpoint
+
+### Requirement: Audio Format Detection
+
+The system SHALL detect and use the best supported audio format for the user's browser.
+
+#### Scenario: Chrome/Firefox browser
+
+- **WHEN** user is on Chrome or Firefox
+- **THEN** the system uses `audio/webm;codecs=opus` format for optimal compression
+
+#### Scenario: Safari browser
+
+- **WHEN** user is on Safari
+- **THEN** the system falls back to `audio/mp4` format
+
+#### Scenario: Unsupported format
+
+- **WHEN** none of the preferred formats are supported
+- **THEN** the system uses `audio/wav` as final fallback
+
+### Requirement: Audio Upload
+
+The system SHALL upload recorded audio to the backend `/chat` endpoint as multipart/form-data.
+
+#### Scenario: Successful upload
+
+- **WHEN** user stops recording
+- **THEN** the system creates a FormData with the audio blob and current thread_id, sends POST request to `/chat`
+
+#### Scenario: Upload with placeholder message
+
+- **WHEN** audio upload starts
+- **THEN** the system creates a placeholder user message showing "🎤 轉錄中..." while waiting for transcription
+
+### Requirement: Recording State Persistence
+
+The system SHALL maintain clear visual feedback of recording state throughout the recording session.
+
+#### Scenario: Recording indicator visible
+
+- **WHEN** recording is in progress
+- **THEN** the microphone icon has a distinct visual style indicating active recording (e.g., red background or pulsing animation)
+
+#### Scenario: Recording state survives component updates
+
+- **WHEN** React re-renders during recording
+- **THEN** the recording state and MediaRecorder instance persist without interruption
 
 ### Requirement: Text Input Fallback
 

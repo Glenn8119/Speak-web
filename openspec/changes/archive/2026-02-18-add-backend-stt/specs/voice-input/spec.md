@@ -7,7 +7,7 @@ The system SHALL allow users to start voice recording by clicking a microphone b
 #### Scenario: User starts recording
 
 - **WHEN** user clicks the microphone button while not recording
-- **THEN** the system starts audio recording using MediaRecorder API and updates UI to show "⏹️ 停止並送出"
+- **THEN** the system starts audio recording using MediaRecorder API and updates the microphone icon to indicate recording state
 
 #### Scenario: User stops recording
 
@@ -70,7 +70,7 @@ The system SHALL record audio using MediaRecorder API with click-to-toggle inter
 #### Scenario: First click starts recording
 
 - **WHEN** user clicks the microphone button for the first time
-- **THEN** the system requests microphone permission (if not granted), starts MediaRecorder, and changes button to "⏹️ 停止並送出"
+- **THEN** the system requests microphone permission (if not granted), starts MediaRecorder, and changes the microphone icon to indicate recording state
 
 #### Scenario: Second click stops and submits
 
@@ -117,7 +117,7 @@ The system SHALL maintain clear visual feedback of recording state throughout th
 #### Scenario: Recording indicator visible
 
 - **WHEN** recording is in progress
-- **THEN** the microphone button displays "⏹️ 停止並送出" and has a distinct visual style (e.g., red background or pulsing animation)
+- **THEN** the microphone icon has a distinct visual style indicating active recording (e.g., red background or pulsing animation)
 
 #### Scenario: Recording state survives component updates
 
