@@ -1,170 +1,89 @@
-import {
-  useState,
-  useRef,
-  useEffect,
-  type KeyboardEvent,
-  type ChangeEvent
-} from 'react'
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { useAudioRecorder } from '../hooks/useAudioRecorder'
 
 interface MessageInputProps {
-  onSend: (text: string) => void
+  onSendAudio?: (audioBlob: Blob) => void
   disabled?: boolean
 }
 
 export default function MessageInput({
-  onSend,
+  onSendAudio,
   disabled = false
 }: MessageInputProps) {
-  const [text, setText] = useState('')
-  const [speechError, setSpeechError] = useState<string | null>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // Speech recognition hook
+  // Audio recording hook
   const {
-    isSupported,
     isRecording,
+    error: audioError,
     startRecording,
-    stopRecording,
-    clearTranscript,
-    error: recognitionError
-  } = useSpeechRecognition({
-    onFinalResult: (finalTranscript) => {
-      // Update text field but don't auto-submit
-      // Let user review and manually click Send
-      setText(finalTranscript)
-    },
-    onInterimResult: (interimTranscript) => {
-      // Update text field with interim results
-      setText(interimTranscript)
-    },
-    onError: (error) => {
-      setSpeechError(error)
-      // Clear error after 5 seconds
-      setTimeout(() => setSpeechError(null), 5000)
-    }
-  })
+    stopRecording
+  } = useAudioRecorder()
 
-  // Auto-resize textarea based on content
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (textarea) {
-      textarea.style.height = 'auto'
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
-    }
-  }, [text])
-
-  const handleSend = () => {
-    const trimmed = text.trim()
-    if (!trimmed) return
-    onSend(trimmed)
-    setText('')
-    clearTranscript()
-  }
-
-  const handleChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
-    // When user types, clear any interim transcript from voice input
+  const handleMicClick = async () => {
     if (isRecording) {
-      stopRecording()
-      clearTranscript()
-    }
-    setText(e.target.value)
-  }
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
-
-  const handleMicClick = () => {
-    if (isRecording) {
-      stopRecording()
+      // Stop recording and send audio
+      const audioBlob = await stopRecording()
+      if (audioBlob && onSendAudio) {
+        onSendAudio(audioBlob)
+      }
     } else {
-      // Clear text field when starting voice input
-      setText('')
-      clearTranscript()
-      setSpeechError(null)
-      startRecording()
+      // Start recording
+      await startRecording()
     }
   }
 
   return (
     <div className='relative'>
       {/* Error message banner */}
-      {(speechError || recognitionError) && (
+      {audioError && (
         <div className='absolute bottom-full left-0 right-0 mb-2 px-4'>
           <div className='bg-red-900/50 border border-red-700 text-red-200 px-4 py-2 rounded-lg text-sm'>
-            {speechError || recognitionError}
+            {audioError}
           </div>
         </div>
       )}
 
-      {/* Unsupported browser message */}
-      {!isSupported && (
-        <div className='absolute bottom-full left-0 right-0 mb-2 px-4'>
-          <div className='bg-yellow-900/50 border border-yellow-700 text-yellow-200 px-4 py-2 rounded-lg text-sm'>
-            Voice input is not supported in your browser. Please use text input
-            or try Chrome/Edge.
-          </div>
-        </div>
-      )}
-
-      <div className='flex items-end gap-2 p-4 border-t border-gray-800'>
-        <textarea
-          ref={textareaRef}
-          value={text}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          disabled={disabled || isRecording}
-          placeholder={
-            isRecording ? 'Listening...' : 'Type a message... (Enter to send)'
-          }
-          rows={1}
-          className='flex-1 resize-none bg-gray-800 text-gray-100 placeholder-gray-500 rounded-xl px-4 py-2.5 text-sm border border-gray-700 focus:border-indigo-500 focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden'
-        />
-
+      <div className='flex items-center justify-center p-4 border-t border-gray-800'>
         {/* Microphone button */}
         <button
           onClick={handleMicClick}
-          disabled={disabled || !isSupported}
-          className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ${
+          disabled={disabled}
+          className={`relative w-20 h-20 rounded-full transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center ${
             isRecording
-              ? 'bg-red-600 hover:bg-red-500 text-white animate-pulse'
-              : 'bg-gray-700 hover:bg-gray-600 text-gray-100'
+              ? 'bg-red-600 hover:bg-red-500 shadow-lg shadow-red-500/50 animate-pulse'
+              : 'bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50'
           }`}
-          title={
-            !isSupported
-              ? 'Voice input not supported'
-              : isRecording
-                ? 'Stop recording'
-                : 'Start voice input'
-          }
+          title={isRecording ? '停止並送出' : '開始錄音'}
         >
+          {/* Microphone Icon */}
           {isRecording ? (
-            <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-              <rect x='6' y='4' width='8' height='12' rx='1' />
+            // Stop/Square icon when recording
+            <svg
+              className="w-10 h-10 text-white"
+              fill="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <rect x="6" y="6" width="12" height="12" rx="2" />
             </svg>
           ) : (
-            <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
-              <path d='M10 12a2 2 0 100-4 2 2 0 000 4z' />
+            // Microphone icon when not recording
+            <svg
+              className="w-10 h-10 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
               <path
-                fillRule='evenodd'
-                d='M10 18a8 8 0 100-16 8 8 0 000 16zm0-2a6 6 0 100-12 6 6 0 000 12z'
-                clipRule='evenodd'
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
               />
-              <circle cx='10' cy='10' r='3' />
             </svg>
           )}
-        </button>
 
-        <button
-          onClick={handleSend}
-          disabled={disabled || !text.trim()}
-          className='bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0'
-        >
-          Send
+          {/* Recording indicator ring */}
+          {isRecording && (
+            <span className="absolute inset-0 rounded-full border-4 border-red-400 animate-ping opacity-75" />
+          )}
         </button>
       </div>
     </div>

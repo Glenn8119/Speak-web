@@ -11,7 +11,7 @@ import type { Summary } from './types'
 function ChatApp() {
   const { loading, threadId, setLoading, clearThread } = useChat()
   const { playAudio } = useAudioPlayback()
-  const { sendMessage, reconnectAttempts } = useSSE({
+  const { sendAudio, reconnectAttempts } = useSSE({
     onAudioChunk: (data) => {
       playAudio(data.audio)
     }
@@ -60,7 +60,7 @@ function ChatApp() {
       <ChatContainer reconnectAttempts={reconnectAttempts} />
 
       {/* Message input */}
-      <MessageInput onSend={sendMessage} disabled={isInputDisabled} />
+      <MessageInput onSendAudio={sendAudio} disabled={isInputDisabled} />
 
       {/* Summary modal (rendered when summary data is available) */}
       {summary && (

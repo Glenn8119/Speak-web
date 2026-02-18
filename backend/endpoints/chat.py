@@ -20,7 +20,6 @@ from openai import OpenAI
 from dependencies import get_graph, get_ielts_index
 from ielts_rag import run_ielts_rag_pipeline
 from schemas.chat import (
-    ChatRequest,
     CorrectionInfo,
     HistoryMessage,
     HistoryResponse,
@@ -83,7 +82,9 @@ async def chat(
                 # Create a file-like object from audio bytes
                 import io
                 audio_file = io.BytesIO(audio_bytes)
-                audio_file.name = "audio.webm"  # Whisper needs a filename
+                # Use the original filename (with extension) from the upload
+                # This tells Whisper API the correct format (webm, mp4, wav, etc.)
+                audio_file.name = audio.filename or "audio.webm"
 
                 # Call Whisper API
                 transcript = openai_client.audio.transcriptions.create(

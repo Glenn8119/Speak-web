@@ -27,8 +27,8 @@ interface UseSSEConfig {
 
 /** Return type for the useSSE hook */
 interface UseSSEReturn {
-  /** Send a message to the chat API via SSE */
-  sendMessage: (message: string) => void
+  /** Send audio to the chat API via SSE */
+  sendAudio: (audioBlob: Blob) => void
   /** Whether an SSE connection is currently active */
   isConnected: boolean
   /** Close the current SSE connection */
@@ -48,7 +48,7 @@ const DEFAULT_CONFIG = {
  * Custom hook for managing SSE connections to the chat API.
  */
 export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
-  const { baseUrl, maxReconnectAttempts, reconnectBaseDelay, onAudioChunk } = {
+  const { baseUrl, onAudioChunk } = {
     ...DEFAULT_CONFIG,
     ...config
   }
@@ -70,7 +70,6 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
   const lastUserMessageIdRef = useRef<string | null>(null)
   const isCompleteHandledRef = useRef<boolean>(false)
   const reconnectAttemptsRef = useRef(0)
-  const executeRequestRef = useRef<((message: string) => void) | null>(null)
   const threadIdRef = useRef(threadId)
 
   // State
@@ -98,10 +97,23 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
   }, [])
 
   /**
-   * Execute the SSE request
+   * Get file extension from MIME type for Whisper API
    */
-  const executeRequest = useCallback(
-    (message: string) => {
+  const getFileExtension = (mimeType: string): string => {
+    if (mimeType.includes('webm')) return 'webm'
+    if (mimeType.includes('mp4')) return 'mp4'
+    if (mimeType.includes('wav')) return 'wav'
+    if (mimeType.includes('m4a')) return 'm4a'
+    if (mimeType.includes('ogg')) return 'ogg'
+    // Default fallback
+    return 'webm'
+  }
+
+  /**
+   * Execute an audio request (upload audio and stream SSE response)
+   */
+  const executeAudioRequest = useCallback(
+    (audioBlob: Blob) => {
       isCompleteHandledRef.current = false
       cleanup()
       setError(null)
@@ -111,10 +123,13 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
       setLoading('correction', true)
 
       const url = `${baseUrl}/chat`
-      const requestBody = JSON.stringify({
-        message,
-        thread_id: threadIdRef.current || undefined
-      })
+      const formData = new FormData()
+      // Include file extension based on actual MIME type for Whisper API
+      const extension = getFileExtension(audioBlob.type)
+      formData.append('audio', audioBlob, `audio.${extension}`)
+      if (threadIdRef.current) {
+        formData.append('thread_id', threadIdRef.current)
+      }
 
       // Inline handlers to avoid dependency issues
       const onComplete = () => {
@@ -131,6 +146,13 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
 
       const onThreadId = (data: ThreadIdEventData) => {
         setThreadId(data.thread_id)
+      }
+
+      const onTranscription = (data: { text: string; timestamp?: number }) => {
+        // Replace placeholder message with transcribed text
+        if (lastUserMessageIdRef.current) {
+          updateMessageContent(lastUserMessageIdRef.current, data.text)
+        }
       }
 
       const onChatResponse = (data: ChatResponseEventData) => {
@@ -185,10 +207,9 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
       fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Accept: 'text/event-stream'
         },
-        body: requestBody
+        body: formData
       })
         .then(async (response) => {
           if (!response.ok) {
@@ -233,6 +254,11 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
                       case 'thread_id':
                         onThreadId(parsedData as ThreadIdEventData)
                         break
+                      case 'transcription':
+                        onTranscription(
+                          parsedData as { text: string; timestamp?: number }
+                        )
+                        break
                       case 'chat_response':
                         onChatResponse(parsedData as ChatResponseEventData)
                         break
@@ -269,31 +295,16 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
         .catch((error) => {
           console.error('SSE connection error:', error)
           setIsConnected(false)
-
-          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-            const delay =
-              reconnectBaseDelay * Math.pow(2, reconnectAttemptsRef.current)
-            setError(`Connection lost. Reconnecting in ${delay / 1000}s...`)
-
-            reconnectTimeoutRef.current = setTimeout(() => {
-              reconnectAttemptsRef.current += 1
-              setReconnectAttempts(reconnectAttemptsRef.current)
-              executeRequestRef.current?.(message)
-            }, delay)
-          } else {
-            onError({
-              node: 'unknown',
-              message: `Connection failed after ${maxReconnectAttempts} attempts. Please try sending your message again.`
-            })
-            reconnectAttemptsRef.current = 0
-            setReconnectAttempts(0)
-          }
+          onError({
+            node: 'unknown',
+            message: 'Failed to upload audio. Please try again.'
+          })
+          reconnectAttemptsRef.current = 0
+          setReconnectAttempts(0)
         })
     },
     [
       baseUrl,
-      maxReconnectAttempts,
-      reconnectBaseDelay,
       cleanup,
       setError,
       setLoading,
@@ -305,24 +316,20 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
     ]
   )
 
-  // Keep ref in sync for recursive calls
-  useEffect(() => {
-    executeRequestRef.current = executeRequest
-  }, [executeRequest])
-
   /**
-   * Send a message to the chat API via SSE
+   * Send audio to the chat API via SSE
    */
-  const sendMessage = useCallback(
-    (message: string) => {
+  const sendAudio = useCallback(
+    (audioBlob: Blob) => {
+      // Create placeholder message with "🎤 轉錄中..."
       const userMessageId = addMessage({
         role: 'user',
-        content: message
+        content: '🎤 轉錄中...'
       })
       lastUserMessageIdRef.current = userMessageId
-      executeRequest(message)
+      executeAudioRequest(audioBlob)
     },
-    [addMessage, executeRequest]
+    [addMessage, executeAudioRequest]
   )
 
   /**
@@ -335,7 +342,7 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
   }, [cleanup, setLoading])
 
   return {
-    sendMessage,
+    sendAudio,
     isConnected,
     disconnect,
     reconnectAttempts
