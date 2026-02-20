@@ -18,7 +18,7 @@ The system SHALL allow users to start voice recording by clicking a microphone b
 #### Scenario: User stops recording
 
 - **WHEN** user clicks the microphone button while recording
-- **THEN** the system stops recording, uploads the audio file to backend, and displays "🎤 轉錄中..."
+- **THEN** the system stops recording, uploads the audio file to backend, and displays "🎤 Transcribing..."
 
 ### Requirement: Real-time Transcript Display
 
@@ -27,7 +27,7 @@ The system SHALL display the transcribed text received from the backend immediat
 #### Scenario: Transcription received from backend
 
 - **WHEN** backend returns transcription via SSE `transcription` event
-- **THEN** the system updates the user message with the transcribed text and removes the "轉錄中..." placeholder
+- **THEN** the system updates the user message with the transcribed text and removes the "Transcribing..." placeholder
 
 #### Scenario: Transcription displays punctuation
 
@@ -98,7 +98,7 @@ The system SHALL upload recorded audio to the backend `/chat` endpoint as multip
 #### Scenario: Upload with placeholder message
 
 - **WHEN** audio upload starts
-- **THEN** the system creates a placeholder user message showing "🎤 轉錄中..." while waiting for transcription
+- **THEN** the system creates a placeholder user message showing "🎤 Transcribing..." while waiting for transcription
 
 ### Requirement: Recording State Persistence
 

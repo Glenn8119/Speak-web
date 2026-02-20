@@ -321,10 +321,10 @@ export function useSSE(config: UseSSEConfig = {}): UseSSEReturn {
    */
   const sendAudio = useCallback(
     (audioBlob: Blob) => {
-      // Create placeholder message with "🎤 轉錄中..."
+      // Create placeholder message with "🎤 Transcribing..."
       const userMessageId = addMessage({
         role: 'user',
-        content: '🎤 轉錄中...'
+        content: '🎤 Transcribing...'
       })
       lastUserMessageIdRef.current = userMessageId
       executeAudioRequest(audioBlob)

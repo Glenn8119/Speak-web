@@ -132,7 +132,7 @@ The backend SHALL complete transcription within acceptable latency for conversat
 #### Scenario: Transcription progress indicator
 
 - **WHEN** transcription is in progress
-- **THEN** frontend displays "🎤 轉錄中..." placeholder while waiting for transcription event
+- **THEN** frontend displays "🎤 Transcribing..." placeholder while waiting for transcription event
 
 ### Requirement: Audio File Cleanup
 

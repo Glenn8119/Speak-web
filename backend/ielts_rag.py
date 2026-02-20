@@ -295,15 +295,12 @@ async def run_ielts_rag_pipeline(
         if not keywords["replaceable_words"] and not keywords["topic_keywords"]:
             return {"suggestions": []}
 
-        print('123')
-
         # Step 2: Search FAISS index for vocabulary matches
         vocabulary_matches = await search_ielts_vocabulary(keywords, faiss_index)
         logger.debug(f"Found {len(vocabulary_matches)} vocabulary matches")
 
         if not vocabulary_matches:
             return {"suggestions": []}
-        print('456')
 
         # Step 3: Generate suggestions using Claude Sonnet
         suggestions = await generate_suggestions(
@@ -312,7 +309,6 @@ async def run_ielts_rag_pipeline(
             vocabulary_matches,
         )
         logger.debug(f"Generated {len(suggestions)} suggestions")
-        print('789')
 
         return {"suggestions": suggestions}
 

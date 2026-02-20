@@ -1,316 +1,54 @@
-# Speak - AI-Powered English Practice Chat
-
-<div align="center">
-
-**Practice English conversation with real-time grammar feedback**
-
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/React-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge)](https://langchain-ai.github.io/langgraph/)
-[![Anthropic](https://img.shields.io/badge/Anthropic-Claude-orange?style=for-the-badge)](https://anthropic.com/)
+# Speak Web - AI English Practice Chat
 
-</div>
+## Overview
 
----
+![Overview](./assets/overview.png)
 
-## ✨ Features
+This project is a web-based clone inspired by the Speak app, bringing the same immersive voice-based learning experience to the web while leveraging modern AI technologies and architectural patterns.
 
-- **🤖 AI Conversation Partner** - Chat naturally with an encouraging AI that helps you practice everyday English
-- **🎤 Voice Input & Output** - Speak your messages and hear AI responses with natural text-to-speech
-- **📝 Real-time Grammar Correction** - Get instant feedback on grammar errors as you chat
-- **⚡ Parallel Processing** - Chat response and grammar analysis run simultaneously for faster feedback
-- **💾 Conversation Persistence** - Your conversations are saved and restored across page refreshes
-- **📊 Practice Summaries** - Get AI-generated tips and pattern analysis for your grammar journey
-- **🎯 Focus on Spoken English** - Corrections focus on natural speech patterns, not formal writing
+This is a full-stack English practice application that enables users to have voice-based conversations with an AI partner. The system integrates Claude LLM for natural dialogue generation, OpenAI Whisper for speech-to-text transcription, and OpenAI TTS for realistic voice responses. A parallel grammar correction system provides real-time feedback on user messages, helping learners improve their English skills through practice.
 
----
+## Key Highlights
 
-## 🚀 Quick Start
+**End-to-End Voice Conversation:** Users speak to practice English, with voice automatically transcribed via OpenAI Whisper API, and AI responses converted to natural-sounding speech via OpenAI TTS API, creating a fully voice-based immersive learning experience without typing.
 
-### Prerequisites
+**Real-time Grammar Correction:** A parallel analysis pipeline examines user messages for grammar errors and returns structured corrections without interrupting the conversation flow, processed simultaneously with the AI response.
 
-- **Python 3.12+** with [uv](https://github.com/astral-sh/uv) package manager
-- **Node.js 18+** with [pnpm](https://pnpm.io/)
-- **Anthropic API Key** from [Anthropic Console](https://console.anthropic.com/)
-- **OpenAI API Key** from [OpenAI Platform](https://platform.openai.com/) (for text-to-speech)
+**Guardrail for Content Filtering:** A guardrail system classifies user intent to ensure the conversation stays focused on English practice, rejecting off-topic or task-based requests.
 
-### Installation
+**Conversation Summary & RAG Integration:** Post-conversation summaries include AI-generated learning tips and contextually relevant vocabulary suggestions using RAG (FAISS vector index with AWS Bedrock embeddings for semantic search).
 
-1. **Clone the repository**
+## Technology Stack
 
-   ```bash
-   git clone <repository-url>
-   cd speak-web
-   ```
+- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS 4
+- **Backend:** Python 3.13, FastAPI, LangGraph, LangChain
+- **AI Integration:** Claude LLM (Anthropic SDK), OpenAI Whisper API, OpenAI TTS API
+- **RAG Infrastructure:** FAISS vector index, AWS Bedrock Embeddings, LangChain
 
-2. **Install all dependencies**
+## Features
 
-   ```bash
-   make install
-   ```
+### Chat
 
-3. **Configure environment variables**
+![Chat-flow](./assets/chat-flow.png)
 
-   ```bash
-   # Copy the example env file
-   cp backend/.env.example backend/.env
+#### Parallel Execution for Low Latency
 
-   # Add your API keys
-   # Edit backend/.env and add:
-   # ANTHROPIC_API_KEY=sk-ant-api03-...
-   # OPENAI_API_KEY=sk-...
-   ```
+The LangGraph workflow is designed to minimize response latency through parallel execution. After the guardrail node classifies the user intent, the chat generation and grammar correction nodes run in parallel rather than sequentially. Additionally, results are emitted immediately as they become available via Server-Sent Events (SSE), allowing the frontend to start rendering and playing audio without waiting for the entire pipeline to complete.
 
-4. **Start the development servers**
+### Summary
 
-   ```bash
-   make dev
-   ```
+1. Generate personalized learning tips based on grammar corrections
+2. Generate IELTS vocabulary suggestions to enhance sentences
 
-5. **Open the app**
-   - Frontend: http://localhost:5173
-   - Backend API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
+#### RAG Implementation Approach
 
----
+The IELTS vocabulary recommendation system uses a structured JSON format where each word is treated as an individual chunk in the FAISS vector index. To improve search accuracy, we employ a two-step process: before querying the vector store, we first use an LLM to extract relevant keywords from the conversation context. This keyword extraction step significantly enhances the precision of semantic search results.
 
-## 📁 Project Structure
+## Development Notes
 
-```
-speak-web/
-├── backend/                   # Python/FastAPI backend
-│   ├── endpoints/            # API route handlers
-│   │   ├── chat.py          # Chat, history, and summary endpoints
-│   │   └── health.py        # Health check endpoint
-│   ├── schemas/             # Pydantic models
-│   ├── utils/               # Utility functions
-│   ├── graph.py             # LangGraph workflow definition
-│   ├── main.py              # FastAPI application entry
-│   └── dependencies.py      # Dependency injection
-│
-├── frontend/                  # React/Vite frontend
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── context/         # React Context (ChatContext)
-│   │   ├── hooks/           # Custom hooks (useSSE)
-│   │   ├── types/           # TypeScript interfaces
-│   │   └── App.tsx          # Main application
-│   └── ...
-│
-├── openspec/                  # Project specifications
-├── Makefile                   # Development commands
-└── README.md                  # This file
-```
+### Model Selection Strategy
 
----
+To optimize costs while maintaining quality, we use different Claude models for different task complexities:
 
-## 🔧 Development Commands
-
-All commands are run from the project root using `make`:
-
-```bash
-# Start both frontend and backend
-make dev
-
-# Start only frontend (port 5173)
-make dev-frontend
-
-# Start only backend (port 8000)
-make dev-backend
-
-# Install all dependencies
-make install
-
-# Install frontend dependencies only
-make install-frontend
-
-# Install backend dependencies only
-make install-backend
-```
-
-### Additional Commands
-
-```bash
-# Frontend-specific
-cd frontend && pnpm lint          # Lint frontend code
-cd frontend && pnpm build         # Production build
-
-# Backend-specific
-cd backend && uv run python test_graph.py    # Test LangGraph workflow
-cd backend && uv run uvicorn main:app --reload  # Run backend manually
-```
-
----
-
-## 🌐 Environment Variables
-
-Create a `.env` file in the `backend/` directory:
-
-```bash
-# Required
-ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
-OPENAI_API_KEY=sk-your-key-here
-
-# Optional (defaults shown)
-# LOG_LEVEL=INFO
-```
-
-> ⚠️ **Never commit your API keys!** The `.env` file is already in `.gitignore`.
-
-See `backend/.env.example` for a template.
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint               | Description                                        |
-| ------ | ---------------------- | -------------------------------------------------- |
-| POST   | `/chat`                | Stream AI response and grammar corrections via SSE |
-| GET    | `/history/{thread_id}` | Retrieve conversation history                      |
-| POST   | `/summary`             | Generate practice summary with AI tips             |
-| GET    | `/health`              | Health check endpoint                              |
-
-### SSE Events (from `/chat`)
-
-| Event           | Description                        |
-| --------------- | ---------------------------------- |
-| `thread_id`     | New conversation thread ID         |
-| `chat_response` | AI conversation response           |
-| `correction`    | Grammar correction data            |
-| `audio_chunk`   | Base64-encoded audio (Opus format) |
-| `error`         | Node failure information           |
-| `complete`      | Stream completion status           |
-
-For detailed API documentation, visit http://localhost:8000/docs when the backend is running.
-
----
-
-## 🎤 Voice Features
-
-### Voice Input (Speech-to-Text)
-
-The app uses the browser-native **Web Speech API** for voice input:
-
-- Click the microphone button to start recording
-- Speak naturally in English
-- Your speech is transcribed in real-time
-- The message is automatically sent when you finish speaking
-
-**Browser Compatibility:**
-
-| Browser | Support                                   |
-| ------- | ----------------------------------------- |
-| Chrome  | ✅ Full                                   |
-| Edge    | ✅ Full                                   |
-| Firefox | ✅ Full                                   |
-| Safari  | ⚠️ Limited (may not work on all versions) |
-
-> **Note:** If voice input is not supported in your browser, the microphone button will be disabled. Text input remains fully functional as a fallback.
-
-### Voice Output (Text-to-Speech)
-
-AI responses are automatically converted to speech using **OpenAI TTS API**:
-
-- **Model:** `tts-1` (optimized for low latency)
-- **Voice:** `nova` (friendly, natural female voice)
-- **Format:** Opus (high quality, small file size)
-- **Playback:** Automatic after text response appears
-
-Audio playback is non-blocking - you can continue using the app while listening to responses.
-
-### SSE Event Schema: `audio_chunk`
-
-When the backend generates audio, it streams an `audio_chunk` event:
-
-```typescript
-event: audio_chunk
-data: {
-  "audio": "base64_encoded_opus_data",
-  "format": "opus"
-}
-```
-
-The frontend automatically decodes and plays the audio using the Web Audio API.
-
----
-
-## 🏗️ Architecture
-
-### LangGraph Workflow
-
-The backend uses LangGraph for AI orchestration with parallel execution:
-
-```
-                   ┌→ correction_node → END
-                   │
-START → dispatch → ┤
-                   │
-                   └→ chat_node → tts_node → END
-```
-
-- **dispatch_node**: Entry point that fans out to parallel nodes
-- **chat_node**: Generates friendly conversational AI responses using Claude
-- **tts_node**: Converts chat response to speech using OpenAI TTS (runs in series after chat)
-- **correction_node**: Analyzes grammar and returns structured corrections (runs in parallel)
-
-Chat and corrections execute in parallel. TTS runs in series after chat completes, streaming audio via SSE.
-
-### State Persistence
-
-Conversation state is managed by LangGraph's checkpointer:
-
-- **Development**: `MemorySaver` (in-memory)
-- **Production**: Redis or PostgreSQL (configurable)
-
-### Frontend Architecture
-
-- **State Management**: React Context with reducer pattern
-- **SSE Handling**: Custom `useSSE` hook with automatic reconnection
-- **Components**: Modular design with ChatContainer, MessageInput, CorrectionAccordion, etc.
-
----
-
-## 🚀 Deployment
-
-### Production Considerations
-
-1. **Switch Checkpointer**: Replace `MemorySaver` with Redis or PostgreSQL for persistent state
-2. **CORS Configuration**: Update allowed origins in `backend/main.py`
-3. **Rate Limiting**: Consider implementing rate limiting for public deployment
-4. **Environment**: Use proper secret management for API keys
-
-### Docker Deployment
-
-```bash
-# Coming soon - Docker support is planned for future releases
-```
-
-### Cloud Deployment Options
-
-- **Backend**: Any Python-compatible host (Railway, Render, AWS Lambda, etc.)
-- **Frontend**: Static hosting (Vercel, Netlify, CloudFront + S3)
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- [LangGraph](https://langchain-ai.github.io/langgraph/) for the AI workflow engine
-- [Anthropic Claude](https://anthropic.com/) for powering the AI interactions
-- [FastAPI](https://fastapi.tiangolo.com/) for the excellent Python web framework
-- [Vite](https://vitejs.dev/) for lightning-fast frontend development
+- **Haiku**: Used for conversational chat responses, keyword extraction, and intent classification (guardrail). Beyond cost savings, Haiku's faster inference significantly reduces Time To First Token (TTFT), improving overall system responsiveness for real-time interactions.
+- **Sonnet**: Used for tasks requiring higher accuracy and structured output (grammar corrections, conversation summaries with pattern analysis)

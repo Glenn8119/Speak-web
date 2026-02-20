@@ -363,7 +363,6 @@ async def get_summary(
     2. AI-generated tips based on correction analysis
     3. IELTS vocabulary suggestions based on corrected sentences (in parallel with tips)
 
-    # TODO: Future enhancement - Add Notion MCP sync to save summaries
     # to user's learning journal in Notion for long-term progress tracking.
 
     Args:
@@ -390,6 +389,8 @@ async def get_summary(
             )
 
         corrections = state.values.get("corrections", [])
+        # Filter out corrections without issues
+        corrections = [c for c in corrections if c.get("issues")]
 
         # Handle empty corrections (skip RAG pipeline)
         if not corrections:

@@ -38,7 +38,7 @@
 
 - [x] 5.1 Add `sendAudio(audioBlob: Blob)` method to `useSSE` hook
 - [x] 5.2 Implement `executeAudioRequest()` function to upload audio as FormData
-- [x] 5.3 Add placeholder user message with "🎤 轉錄中..." when audio upload starts
+- [x] 5.3 Add placeholder user message with "🎤 Transcribing..." when audio upload starts
 - [x] 5.4 Add `onTranscription()` handler for new `transcription` SSE event
 - [x] 5.5 Implement message content update to replace placeholder with transcribed text
 - [x] 5.6 Update SSE event switch statement to handle `transcription` event type
@@ -57,8 +57,6 @@
 - [x] 7.2 Replace `useSpeechRecognition` usage with `useAudioRecorder`
 - [x] 7.3 Get `sendAudio` method from SSE context
 - [x] 7.4 Implement `handleMicClick()` with toggle mode logic
-- [x] 7.5 Update button UI to show "🎤 開始錄音" when idle
-- [x] 7.6 Update button UI to show "⏹️ 停止並送出" when recording
 - [x] 7.7 Add visual recording indicator (e.g., red background or pulsing animation)
 - [x] 7.8 Display microphone permission errors to user
 
@@ -68,7 +66,7 @@
 - [x] 8.2 Test recording start/stop toggle interaction
 - [x] 8.3 Verify audio blob is created correctly with appropriate format
 - [x] 8.4 Test audio upload to backend via FormData
-- [x] 8.5 Verify "🎤 轉錄中..." placeholder appears immediately
+- [x] 8.5 Verify "🎤 Transcribing..." placeholder appears immediately
 - [x] 8.6 Verify transcribed text replaces placeholder after SSE event
 - [x] 8.7 Test full conversation flow: record → transcribe → AI response
 
