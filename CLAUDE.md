@@ -33,20 +33,24 @@ cd backend && uv run uvicorn main:app --reload  # Run backend manually
 ### Backend (Python/FastAPI)
 
 **LangGraph Workflow** ([backend/graph.py](backend/graph.py)):
-- `dispatch_node` → fans out to parallel execution
-- `chat_node` → generates conversational AI response using Claude
+- `guardrail_node` → entry point that classifies user intent (conversation vs task request)
+- `chat_and_tts_node` (chat_tts) → generates AI response using Claude + converts to speech via OpenAI TTS
 - `correction_node` → analyzes grammar and returns structured corrections
-- Both nodes execute in parallel via LangGraph, streaming results independently
+- `tts_node` → standalone TTS for guardrail rejection messages
+- Flow: START → guardrail → [pass: chat_tts + correction in parallel] or [reject: tts only]
 
 **API Endpoints** ([backend/endpoints/chat.py](backend/endpoints/chat.py)):
 - `POST /chat` - SSE streaming endpoint for voice input → transcription → chat + corrections
   - Accepts multipart/form-data with audio file and optional thread_id
   - Uses OpenAI Whisper API for speech-to-text transcription
-- `POST /summary` - Generate conversation summary
+  - Returns AI response with TTS audio (OpenAI TTS API)
+- `POST /summary` - Generate conversation summary with AI tips and IELTS vocabulary suggestions
+  - Uses FAISS vector index with AWS Bedrock embeddings for RAG-based vocabulary recommendations
+  - Runs tips generation and IELTS RAG pipeline in parallel
 - `GET /history/{thread_id}` - Retrieve conversation history
 - `GET /health` - Health check
 
-**SSE Events**: `transcription`, `thread_id`, `chat_response`, `correction`, `error`, `complete`
+**SSE Events**: `transcription`, `thread_id`, `chat_response`, `correction`, `audio_chunk`, `error`, `complete`
 
 Thread persistence uses LangGraph checkpointing (MemorySaver in dev).
 
@@ -63,12 +67,25 @@ Thread persistence uses LangGraph checkpointing (MemorySaver in dev).
 2. Upload audio → `useSSE.sendAudio()` sends multipart/form-data
 3. Backend transcribes audio (Whisper API) → emits `transcription` event
 4. User message updated with transcribed text
-5. LangGraph processes message → chat + correction nodes execute in parallel
-6. Parse SSE events → update ChatContext state
-7. Components re-render with transcription, AI response, and corrections
+5. Guardrail checks message intent (conversation vs task request)
+6. LangGraph routes based on guardrail result:
+   - Pass: chat_tts + correction execute in parallel
+   - Reject: tts generates audio for rejection message
+7. TTS converts AI response to speech → emits `audio_chunk` event
+8. Parse SSE events → update ChatContext state
+9. Components re-render with transcription, AI response, corrections, and play audio
 
 ## Environment
 
-Backend requires both `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` in `backend/.env` (see `.env.example`)
-- `ANTHROPIC_API_KEY`: For Claude AI chat and corrections
-- `OPENAI_API_KEY`: For Whisper API speech-to-text transcription
+Backend requires API keys in `backend/.env` (see `.env.example`):
+
+**Required:**
+- `ANTHROPIC_API_KEY`: For Claude AI chat, corrections, and guardrail classification
+- `OPENAI_API_KEY`: For Whisper API (speech-to-text) and TTS API (text-to-speech)
+
+**Optional (for IELTS RAG feature):**
+- `AWS_ACCESS_KEY_ID`: For AWS Bedrock Embeddings
+- `AWS_SECRET_ACCESS_KEY`: For AWS Bedrock Embeddings
+- `AWS_REGION`: AWS region (e.g., us-east-1)
+
+**IELTS RAG Feature**: The `/summary` endpoint includes AI-generated vocabulary suggestions using a FAISS vector index with AWS Bedrock embeddings. If AWS credentials are not configured, this feature gracefully degrades (returns empty suggestions).
