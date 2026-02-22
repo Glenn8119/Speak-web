@@ -25,12 +25,19 @@ The system SHALL search a pre-built FAISS index of IELTS words using Titan Embed
 - **WHEN** searching for keyword "store"
 - **THEN** system returns relevant IELTS words (e.g., "outlet", "retail", "shop") with definitions and examples
 
-### Requirement: Generate vocabulary suggestions with context
-The system SHALL generate vocabulary suggestions using Claude Sonnet that include the word, definition, example, and improved sentence.
+### Requirement: Generate usage context explanations
+The system SHALL generate usage context explanations using Claude Haiku that describe when/where to use the IELTS word compared to the simpler alternative.
 
-#### Scenario: Generate suggestion with improved sentence
-- **WHEN** processing target word "store" in sentence "I went to the store yesterday"
-- **THEN** system generates suggestion with word, definition, example sentence, and improved version (e.g., "I went to the outlet yesterday")
+#### Scenario: Generate usage context for vocabulary suggestion
+- **WHEN** vocabulary match found for keyword "store" → "establishment"
+- **THEN** system generates usage_context explaining the difference (e.g., "Use 'store' in casual conversation. 'Establishment' is more formal, suitable for IELTS writing or when describing institutions.")
+
+### Requirement: Return complete vocabulary suggestions
+The system SHALL return vocabulary suggestions including target_word, ielts_word, definition, example sentence, and usage_context.
+
+#### Scenario: Return vocabulary suggestion with usage context
+- **WHEN** processing keyword "store" from user's sentence
+- **THEN** system returns suggestion with target_word, ielts_word, definition, example sentence, and usage_context explaining when to use each word
 
 ### Requirement: FAISS index loaded at server startup
 The system SHALL load the pre-built FAISS index into memory when the server starts.
@@ -44,4 +51,4 @@ The system SHALL return empty `ielts_suggestions` if any part of the RAG pipelin
 
 #### Scenario: RAG pipeline timeout
 - **WHEN** RAG pipeline exceeds timeout threshold
-- **THEN** response includes empty `ielts_suggestions` array and other fields (tips, corrections, common_patterns) are unaffected
+- **THEN** response includes empty `ielts_suggestions` array and other fields (tips, corrections) are unaffected

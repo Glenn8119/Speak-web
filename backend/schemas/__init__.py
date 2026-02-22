@@ -2,10 +2,9 @@
 Schema definitions for Speak Chat API.
 """
 
-from schemas.chat import SummaryRequest, PatternInfo, SummaryResponse
+from schemas.chat import SummaryRequest, SummaryResponse
 
 __all__ = [
     "SummaryRequest",
-    "PatternInfo",
     "SummaryResponse",
 ]

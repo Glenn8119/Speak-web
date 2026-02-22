@@ -19,27 +19,25 @@ export default function IELTSSuggestions({
       <div className='space-y-3'>
         {suggestions.map((suggestion, i) => (
           <div key={i} className='bg-gray-800 rounded-lg p-3 space-y-2'>
-            <div className='flex items-center gap-2'>
-              <span className='text-sm text-gray-400'>
-                {suggestion.target_word}
-              </span>
-              <span className='text-gray-600'>→</span>
-              <span className='text-sm font-medium text-indigo-300'>
+            <div>
+              <span className='text-base font-medium text-indigo-300'>
                 {suggestion.ielts_word}
               </span>
             </div>
+            <p className='text-xs text-gray-500'>
+              Related to: "{suggestion.target_word}"
+            </p>
             <p className='text-xs text-gray-400'>{suggestion.definition}</p>
-            <div className='bg-gray-700/50 rounded p-2 space-y-1'>
+            {suggestion.usage_context && (
+              <p className='text-xs text-amber-300/90'>
+                {suggestion.usage_context}
+              </p>
+            )}
+            <div className='bg-gray-700/50 rounded p-2'>
               <div className='flex gap-2 text-xs'>
                 <span className='text-gray-500 shrink-0'>Example:</span>
                 <span className='text-gray-300 italic'>
                   {suggestion.example}
-                </span>
-              </div>
-              <div className='flex gap-2 text-xs'>
-                <span className='text-gray-500 shrink-0'>Improved:</span>
-                <span className='text-green-300'>
-                  {suggestion.improved_sentence}
                 </span>
               </div>
             </div>

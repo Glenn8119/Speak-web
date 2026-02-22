@@ -23,7 +23,6 @@ from schemas.chat import (
     CorrectionInfo,
     HistoryMessage,
     HistoryResponse,
-    PatternInfo,
     SummaryRequest,
     SummaryResponse,
     WordSuggestion,
@@ -384,7 +383,6 @@ async def get_summary(
             return SummaryResponse(
                 corrections=[],
                 tips="Start a conversation to get grammar feedback and personalized tips!",
-                common_patterns=[],
                 ielts_suggestions=[]
             )
 
@@ -397,7 +395,6 @@ async def get_summary(
             return SummaryResponse(
                 corrections=[],
                 tips="Excellent! You haven't made any grammar errors in this conversation. Keep up the great work! 🎉",
-                common_patterns=[],
                 ielts_suggestions=[]
             )
 
@@ -424,7 +421,6 @@ Focus on spoken clarity issues (tenses, agreement, articles). Ignore punctuation
 
 Output format (JSON):
 {
-  "common_patterns": [{"pattern": "Pattern name", "frequency": N, "suggestion": "Practice exercise"}],
   "tips": "2-3 paragraphs: (1) Celebrate effort (2) Key pattern + simple tip (3) Encouragement"
 }
 
@@ -489,21 +485,10 @@ Identify patterns and provide personalized tips."""
 
             tips = analysis.get(
                 "tips", "Keep practicing! Every conversation helps you improve.")
-            patterns_data = analysis.get("common_patterns", [])
-
-            common_patterns = [
-                PatternInfo(
-                    pattern=p.get("pattern", "Unknown"),
-                    frequency=p.get("frequency", 1),
-                    suggestion=p.get("suggestion", "Practice makes perfect!")
-                )
-                for p in patterns_data
-            ]
 
         except (json.JSONDecodeError, KeyError):
             # Fallback if AI response can't be parsed
             tips = "Keep practicing! You're making great progress in your English conversation skills."
-            common_patterns = []
 
         # Convert IELTS suggestions to Pydantic models
         ielts_suggestions = [
@@ -512,7 +497,7 @@ Identify patterns and provide personalized tips."""
                 ielts_word=s.get("ielts_word", ""),
                 definition=s.get("definition", ""),
                 example=s.get("example", ""),
-                improved_sentence=s.get("improved_sentence", "")
+                usage_context=s.get("usage_context", "")
             )
             for s in ielts_result.get("suggestions", [])
         ]
@@ -520,7 +505,6 @@ Identify patterns and provide personalized tips."""
         return SummaryResponse(
             corrections=corrections,
             tips=tips,
-            common_patterns=common_patterns,
             ielts_suggestions=ielts_suggestions
         )
 
@@ -529,6 +513,5 @@ Identify patterns and provide personalized tips."""
         return SummaryResponse(
             corrections=[],
             tips=f"Unable to generate summary: {str(e)}",
-            common_patterns=[],
             ielts_suggestions=[]
         )

@@ -44,4 +44,4 @@ The system SHALL return empty `ielts_suggestions` if any part of the RAG pipelin
 
 #### Scenario: RAG pipeline timeout
 - **WHEN** RAG pipeline exceeds timeout threshold
-- **THEN** response includes empty `ielts_suggestions` array and other fields (tips, corrections, common_patterns) are unaffected
+- **THEN** response includes empty `ielts_suggestions` array and other fields (tips, corrections) are unaffected

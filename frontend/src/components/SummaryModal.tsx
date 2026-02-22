@@ -64,7 +64,7 @@ export default function SummaryModal({
                         {correction.issues.map((issue, j) => (
                           <span
                             key={j}
-                            className='text-xs bg-gray-700 text-yellow-300 px-2 py-0.5 rounded-full'
+                            className='text-xs bg-gray-700 text-yellow-300 px-2 py-0.5 rounded-lg'
                           >
                             {issue}
                           </span>
@@ -81,36 +81,10 @@ export default function SummaryModal({
             )}
           </section>
 
-          {/* Part 2: Common patterns */}
-          {summary.common_patterns && summary.common_patterns.length > 0 && (
-            <section>
-              <h3 className='text-sm font-medium text-gray-400 uppercase tracking-wide mb-3'>
-                Common Patterns
-              </h3>
-              <div className='space-y-2'>
-                {summary.common_patterns.map((pattern, i) => (
-                  <div key={i} className='bg-gray-800 rounded-lg p-3'>
-                    <div className='flex items-center justify-between mb-1'>
-                      <span className='text-sm font-medium text-indigo-300'>
-                        {pattern.pattern}
-                      </span>
-                      <span className='text-xs bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded-full'>
-                        {pattern.frequency}×
-                      </span>
-                    </div>
-                    <p className='text-xs text-gray-400'>
-                      {pattern.suggestion}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Part 3: IELTS vocabulary suggestions */}
+          {/* Part 2: IELTS vocabulary suggestions */}
           <IELTSSuggestions suggestions={summary.ielts_suggestions} />
 
-          {/* Part 4: AI-generated tips */}
+          {/* Part 3: AI-generated tips */}
           {summary.tips && (
             <section>
               <h3 className='text-sm font-medium text-gray-400 uppercase tracking-wide mb-2'>

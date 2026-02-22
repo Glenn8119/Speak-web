@@ -92,17 +92,12 @@ The system SHALL identify and highlight frequently occurring grammar patterns in
 
 ### Requirement: Summary Response Format
 
-The system SHALL return summaries as structured JSON containing corrections array, tips string, and common patterns array.
+The system SHALL return summaries as structured JSON containing corrections array and tips string.
 
 #### Scenario: Structured output
 
 - **WHEN** summary is generated
-- **THEN** response includes fields: corrections (array), tips (string), common_patterns (array)
-
-#### Scenario: Pattern object structure
-
-- **WHEN** common patterns are included
-- **THEN** each pattern contains: pattern name, frequency, and suggestion
+- **THEN** response includes fields: corrections (array), tips (string)
 
 ---
 

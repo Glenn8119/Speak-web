@@ -10,20 +10,13 @@ class SummaryRequest(BaseModel):
     thread_id: str
 
 
-class PatternInfo(BaseModel):
-    """Pattern structure for common errors"""
-    pattern: str
-    frequency: int
-    suggestion: str
-
-
 class WordSuggestion(BaseModel):
     """A single IELTS vocabulary suggestion"""
     target_word: str  # The word being replaced
     ielts_word: str  # The suggested IELTS word
     definition: str  # Definition of the IELTS word
     example: str  # Example sentence from IELTS word list
-    improved_sentence: str  # The corrected sentence with IELTS word substituted
+    usage_context: str  # When/how to use this word vs the simple word
 
 
 class IELTSSuggestion(BaseModel):
@@ -35,7 +28,6 @@ class SummaryResponse(BaseModel):
     """Response model for summary endpoint"""
     corrections: list[dict]
     tips: str
-    common_patterns: list[PatternInfo]
     ielts_suggestions: list[WordSuggestion] = []
 
 

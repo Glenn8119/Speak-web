@@ -108,18 +108,6 @@ export interface AudioChunkEventData {
 }
 
 /**
- * Common pattern identified in corrections
- */
-export interface PatternInfo {
-  /** Name of the error pattern */
-  pattern: string
-  /** Number of times this pattern occurred */
-  frequency: number
-  /** Suggested practice exercise */
-  suggestion: string
-}
-
-/**
  * IELTS vocabulary suggestion from the RAG pipeline
  */
 export interface WordSuggestion {
@@ -131,8 +119,8 @@ export interface WordSuggestion {
   definition: string
   /** Example sentence from IELTS word list */
   example: string
-  /** The corrected sentence with IELTS word substituted */
-  improved_sentence: string
+  /** When/how to use this word vs the simple word */
+  usage_context: string
 }
 
 /**
@@ -141,10 +129,8 @@ export interface WordSuggestion {
 export interface Summary {
   /** Part 1: List of all corrections from the thread */
   corrections: Correction[]
-  /** Part 2: AI-generated tips and common patterns */
+  /** Part 2: AI-generated tips */
   tips: string
-  /** Common error patterns with frequency and suggestions */
-  common_patterns: PatternInfo[]
   /** IELTS vocabulary suggestions from RAG pipeline */
   ielts_suggestions: WordSuggestion[]
 }

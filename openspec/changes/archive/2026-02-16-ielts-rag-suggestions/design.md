@@ -2,7 +2,7 @@
 
 The Speak application provides grammar corrections via the `/summary` endpoint. Users preparing for IELTS exams would benefit from vocabulary suggestions based on the official IELTS word list (approximately 5000 words).
 
-Current flow: User sentences → corrections → tips → common_patterns
+Current flow: User sentences → corrections → tips
 
 New flow adds: corrections → IELTS RAG pipeline → vocabulary suggestions
 
